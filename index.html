@@ -606,6 +606,13 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 .md-logo-prev{display:flex;gap:18px;margin-top:8px}
 .md-logo-prev div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;opacity:.75}
 .md-logo-prev canvas{width:256px;height:128px;image-rendering:pixelated;border:1px solid rgba(255,255,255,.18);background:#fff}
+
+.lg-drop{margin-top:8px;border:1.5px dashed rgba(255,255,255,.28);border-radius:10px;padding:18px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;transition:border-color .15s,background .15s}
+.lg-drop:hover{border-color:rgba(255,255,255,.5)}
+.lg-drop.over{border-color:#ff3ea5;background:rgba(255,62,165,.08)}
+.lg-drop-sub{font-size:11px;opacity:.6}
+.lg-note{font-size:11px;opacity:.7}
+.btn-sm{padding:4px 10px;font-size:11px}
 </style>
 
 <!-- ── HEADER ── -->
@@ -1383,14 +1390,24 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
       <div class="st-msg" id="lg-fw-msg" hidden></div>
     </div>
 
-    <div class="md-logo-step" id="lg-step2" hidden><b>2. Your picture</b>
-      <div class="sub">Any image. It gets squashed to 128&times;64 and reduced to pure black and white &mdash; bold shapes read far better than a photo.</div>
-      <label class="btn btn-ghost" style="margin-top:6px">Choose image
-        <input type="file" id="lg-img" accept="image/*" hidden onchange="lgLoadImg(this.files[0])"></label>
-      <div class="md-logo-ctl">
+    <div class="md-logo-step" id="lg-step2" hidden><b>2. Create your splash screen</b>
+      <div class="sub">Drop a picture in. It gets fitted to 128&times;64 and turned into pure black and white automatically &mdash; the sliders are only there if you want to argue with it.</div>
+
+      <div id="lg-drop" class="lg-drop"
+           ondragover="lgDragOver(event,true)" ondragleave="lgDragOver(event,false)" ondrop="lgDrop(event)"
+           onclick="document.getElementById('lg-img').click()">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+        <div><b>Drag an image here</b></div>
+        <div class="lg-drop-sub">or click to choose &mdash; PNG, JPG, BMP, SVG, anything</div>
+        <input type="file" id="lg-img" accept="image/*" hidden onchange="lgLoadImg(this.files[0])">
+      </div>
+
+      <div class="md-logo-ctl" id="lg-ctl" hidden>
+        <button class="btn btn-ghost btn-sm" onclick="lgAuto()">Auto-adjust again</button>
         <label>Threshold <input type="range" id="lg-thr" min="1" max="254" value="128" oninput="lgRender()"></label>
         <label class="tgl-inline"><input type="checkbox" id="lg-inv" onchange="lgRender()"> Invert</label>
         <label class="tgl-inline"><input type="checkbox" id="lg-fit" checked onchange="lgRender()"> Keep aspect</label>
+        <span class="lg-note" id="lg-note"></span>
       </div>
     </div>
 
@@ -1552,6 +1569,80 @@ async function applyTones() {
   }
   btn.disabled = false; btn.textContent = 'Back up and apply tones';
 }
+// ── Logo: drop zone + automatic adjustment ──
+function lgDragOver(e, on) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('lg-drop').classList.toggle('over', !!on);
+}
+function lgDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('lg-drop').classList.remove('over');
+  var dt = e.dataTransfer; if (!dt) return;
+  var f = null;
+  if (dt.files && dt.files.length) f = dt.files[0];
+  else if (dt.items) for (var i = 0; i < dt.items.length; i++)
+    if (dt.items[i].kind === 'file') { f = dt.items[i].getAsFile(); break; }
+  if (!f) { stMsgTo('lg-msg','Nothing usable was dropped.','warn'); return; }
+  if (!/^image\//.test(f.type) && !/\.(png|jpe?g|bmp|gif|webp|svg)$/i.test(f.name)) {
+    stMsgTo('lg-msg','That is not an image file.','warn'); return;
+  }
+  lgLoadImg(f);
+}
+// Grey levels of the fitted 128x64 image, for picking a threshold.
+function lgGrey() {
+  var c = document.createElement('canvas'); c.width = 128; c.height = 64;
+  var x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, 128, 64);
+  if (LG.img) {
+    if (document.getElementById('lg-fit').checked) {
+      var s = Math.min(128 / LG.img.width, 64 / LG.img.height);
+      var w = LG.img.width * s, h = LG.img.height * s;
+      x.drawImage(LG.img, (128 - w) / 2, (64 - h) / 2, w, h);
+    } else x.drawImage(LG.img, 0, 0, 128, 64);
+  }
+  var d = x.getImageData(0, 0, 128, 64).data, g = new Uint8Array(128 * 64);
+  for (var i = 0, p = 0; i < d.length; i += 4, p++) {
+    var a = d[i+3] / 255;
+    g[p] = Math.round((0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]) * a + 255 * (1 - a));
+  }
+  return g;
+}
+// Otsu: pick the split that best separates the picture into two groups.
+function lgOtsu(g) {
+  var h = new Array(256).fill(0), i;
+  for (i = 0; i < g.length; i++) h[g[i]]++;
+  var total = g.length, sum = 0;
+  for (i = 0; i < 256; i++) sum += i * h[i];
+  var sumB = 0, wB = 0, best = 0, thr = 128;
+  for (i = 0; i < 256; i++) {
+    wB += h[i]; if (!wB) continue;
+    var wF = total - wB; if (!wF) break;
+    sumB += i * h[i];
+    var mB = sumB / wB, mF = (sum - sumB) / wF;
+    var between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > best) { best = between; thr = i; }
+  }
+  // Otsu's t means "pixels <= t are the dark class"; everything downstream
+  // tests lum < threshold, so shift by one or a clean two-tone image
+  // comes out completely blank.
+  return Math.min(254, thr + 1);
+}
+function lgAuto() {
+  if (!LG.img) return;
+  document.getElementById('lg-inv').checked = false;
+  var g = lgGrey(), thr = lgOtsu(g);
+  document.getElementById('lg-thr').value = thr;
+  // If that leaves mostly black, the picture is light-on-dark - flip it.
+  var dark = 0;
+  for (var i = 0; i < g.length; i++) if (g[i] < thr) dark++;
+  var frac = dark / g.length, inverted = false;
+  if (frac > 0.55) { document.getElementById('lg-inv').checked = true; inverted = true; }
+  var note = 'auto: threshold ' + thr + (inverted ? ', inverted' : '') +
+             ' — ' + Math.round((inverted ? 1 - frac : frac) * 100) + '% black';
+  var el = document.getElementById('lg-note'); if (el) el.textContent = note;
+  lgRender();
+}
+
 // ── Logo: patch the splash bitmap inside an EdgeTX firmware .bin ──
 // EdgeTX stores the b/w splash between two markers, as Companion does it
 // (companion/src/storage/firmwareinterface.cpp):
@@ -1612,7 +1703,13 @@ function stMsgTo(id, html, cls) {
 function lgLoadImg(f) {
   if (!f) return;
   var img = new Image(), url = URL.createObjectURL(f);
-  img.onload = function(){ LG.img = img; lgRender(); URL.revokeObjectURL(url); };
+  img.onload = function(){
+    LG.img = img;
+    var c = document.getElementById('lg-ctl'); if (c) c.hidden = false;
+    lgAuto();
+    stMsgTo('lg-msg','', '');
+    URL.revokeObjectURL(url);
+  };
   img.onerror = function(){ stMsgTo('lg-msg','Could not read that image.','bad'); URL.revokeObjectURL(url); };
   img.src = url;
 }
