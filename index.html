@@ -705,6 +705,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
       <div class="st-actions">
         <button class="btn btn-primary" onclick="connectRadio()">Connect radio</button>
         <button class="btn btn-ghost" onclick="loadDemo()">Try the demo radio</button>
+        <button class="btn btn-ghost" id="st-disconnect-btn" hidden onclick="disconnectRadio()">Disconnect (safe to eject)</button>
         <label class="btn btn-ghost st-ro" id="st-ro-label" hidden>Read-only: pick drive folder
           <input type="file" id="st-ro-input" webkitdirectory multiple hidden onchange="loadReadOnly(this.files)">
         </label>
@@ -2932,6 +2933,7 @@ async function loadRadio() {
   RD.backups = (await fsList('BACKUP')).filter(function(n){ return n.indexOf(APP_ID + '-') === 0; }).sort().reverse();
 
   renderRadioInfo();
+  showDisconnect(!RD.demo && !RD.readOnly);
   if (!RD.models.length) {
     stMsg('st-support', 'No models found in <code>MODELS/</code>. Create one model on the radio first (any will do), then connect again. This tool copies its channel setup.', 'bad');
     return;
@@ -3061,8 +3063,46 @@ function buildModelText(o, forSim) {
   }
   return t;
 }
+// ── EdgeTX radio.yml checksum ──────────────────────────────────────────────
+// EdgeTX validates radio.yml with a CRC16 (poly 0x1021, init 0xFFFF) taken
+// over everything AFTER the "checksum:" line. If the value doesn't match, the
+// radio treats the file as corrupt: it renames it to radio_error.yml and boots
+// from factory defaults, which wipes calibration, stick mode and the current
+// model. Any edit to radio.yml MUST recompute this.
+// Ref: radio/src/storage/sdcard_yaml.cpp (readYamlFile / loadRadioSettingsYaml)
+var _crcTab = null;
+function _crc16Table() {
+  if (_crcTab) return _crcTab;
+  _crcTab = new Uint16Array(256);
+  for (var i = 0; i < 256; i++) {
+    var c = (i << 8) & 0xFFFF;
+    for (var b = 0; b < 8; b++) c = (c & 0x8000) ? (((c << 1) & 0xFFFF) ^ 0x1021) : ((c << 1) & 0xFFFF);
+    _crcTab[i] = c;
+  }
+  return _crcTab;
+}
+function edgetxCrc16(bytes) {
+  var tab = _crc16Table(), crc = 0xFFFF;
+  for (var i = 0; i < bytes.length; i++)
+    crc = (((crc << 8) & 0xFFFF) ^ tab[((crc >> 8) ^ bytes[i]) & 0xFF]) & 0xFFFF;
+  return crc;
+}
+function withRadioChecksum(text) {
+  var nl = /\r\n/.test(text) ? '\r\n' : '\n';
+  var i = text.indexOf('\n');
+  var body = (/^checksum:/.test(text) && i >= 0) ? text.slice(i + 1) : text;
+  var bytes = (typeof TextEncoder !== 'undefined')
+    ? new TextEncoder().encode(body)
+    : (function(){ var a = []; for (var k = 0; k < body.length; k++) a.push(body.charCodeAt(k) & 0xFF); return a; })();
+  return 'checksum: ' + edgetxCrc16(bytes) + nl + body;
+}
+
 function buildRadioText(o) {
-  var t = RD.radioYml;
+  var src = RD.radioYml;
+  // Keep the file's own line endings: we rewrite it whole, and the checksum is
+  // taken over the exact bytes we write.
+  var nl = /\r\n/.test(src) ? '\r\n' : '\n';
+  var t = src.replace(/\r\n/g, '\n');
   if (o.batt) {
     t = ySetScalar(t, 'lightAutoOff', 2);        // x5 s = 10 s
     t = ySetScalar(t, 'backlightBright', 40);    // stored inverted: 100 - 60%
@@ -3073,7 +3113,11 @@ function buildRadioText(o) {
     // keep what logging/telemetry depend on switched on
     ['modelSFDisabled', 'radioGFDisabled', 'modelTelemetryDisabled'].forEach(function(k){ t = ySetScalar(t, k, 0); });
   }
-  return t;
+  // Belt and braces: if our checksum is ever wrong, this tells EdgeTX to accept
+  // the file once rather than reset the radio. It clears the flag itself.
+  t = ySetScalar(t, 'manuallyEdited', 1);
+  if (nl === '\r\n') t = t.replace(/\n/g, '\r\n');
+  return withRadioChecksum(t);
 }
 function freeSlots(n) {
   var used = {}; RD.models.forEach(function(m){ used[m.idx] = 1; });
@@ -3111,9 +3155,40 @@ function renderPlan() {
   el.innerHTML = html;
   var applyBtn = document.getElementById('st-apply-btn'), zipBtn = document.getElementById('st-zip-btn');
   applyBtn.hidden = RD.readOnly;
+  applyBtn.disabled = false;
   zipBtn.hidden = !RD.readOnly || RD.demo;
   if (RD.demo) { applyBtn.hidden = false; applyBtn.textContent = 'Back up and apply (demo)'; }
   else applyBtn.textContent = 'Back up and apply';
+}
+
+// ── Release the drive ──
+// The File System Access API keeps the drive busy for as long as we hold a
+// handle to it, which stops the OS ejecting it. Drop every reference here.
+function releaseHandles() {
+  if (RD) {
+    if (RD.models) RD.models.forEach(function(m){ m.text = null; });
+    RD.root = null; RD.mem = null; RD.memName = null;
+    RD.radioYml = null; RD.recOld = null; RD.models = []; RD.backups = [];
+  }
+  RD = null;
+}
+function showDisconnect(on) {
+  var b = document.getElementById('st-disconnect-btn');
+  if (b) b.hidden = !on;
+}
+function disconnectRadio() {
+  releaseHandles();
+  showDisconnect(false);
+  var a = document.getElementById('st-apply-btn'); if (a) { a.disabled = true; a.hidden = true; }
+  var z = document.getElementById('st-zip-btn'); if (z) z.hidden = true;
+  var radio = document.getElementById('st-radio'); if (radio) radio.hidden = true;
+  var plan = document.getElementById('st-plan'); if (plan) plan.innerHTML = '';
+  var rest = document.getElementById('st-restore'); if (rest) rest.hidden = true;
+  stMsg('st-support', '', '');
+  stMsg('st-result', '<b>Drive released — safe to eject.</b> Eject the radio\'s drive on your computer, then unplug the USB cable. The radio reloads with the new setup. Press <b>Connect radio</b> again if you want to make more changes.', 'good');
+  var f1 = document.getElementById('flow-1'); if (f1) f1.className = 'cur';
+  var f2 = document.getElementById('flow-2'); if (f2) f2.className = '';
+  var f3 = document.getElementById('flow-3'); if (f3) f3.className = '';
 }
 
 // ── Apply ──
@@ -3122,6 +3197,7 @@ function stamp() {
   return d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds());
 }
 async function applyPlan() {
+  if (!RD) { stMsg('st-result', 'Radio is disconnected. Press <b>Connect radio</b> to pick the drive again.', 'warn'); return; }
   var p = buildPlan();
   if (p.error) return;
   if (RD.demo) {
@@ -3148,14 +3224,22 @@ async function applyPlan() {
     var o = p.o;
     stMsg('st-result',
       '<b>Done.</b> Backup saved to <code>' + bdir + '</code>.<ol class="steps-list" style="margin-top:6px">' +
-      '<li>Eject the radio\'s drive on your computer, then unplug the USB cable. The radio reloads.</li>' +
+      '<li><b>Eject the radio\'s drive</b> on your computer, then unplug the USB cable. The app has already let go of the drive, so eject will work. The radio reloads.</li>' +
       '<li>Hold <kbd>MDL</kbd>, highlight <b>' + _esc(o.name) + '</b>, press <kbd>ENTER</kbd> and choose <b>Select Model</b>.</li>' +
       '<li>Bind it to your quad (Tools → ExpressLRS → Bind, or a shared binding phrase).</li>' +
       '<li>In Betaflight\'s Modes tab, set ARM and your flight modes to match ' + o.arm + (o.mode ? ' and ' + o.mode : '') + '.</li>' +
       (o.rec ? '<li>Press <kbd>TELE</kbd> on the main screen to see the REC screen.</li>' : '') + '</ol>', 'good');
     document.getElementById('flow-2').className = 'done';
     document.getElementById('flow-3').className = 'done';
-    await loadRadio();
+    // Let go of the drive straight away so the OS can eject it, and stop a
+    // second apply writing duplicate models into the next free slots.
+    releaseHandles();
+    showDisconnect(false);
+    btn.hidden = true;
+    var zb = document.getElementById('st-zip-btn'); if (zb) zb.hidden = true;
+    var pl = document.getElementById('st-plan'); if (pl) pl.innerHTML = '';
+    var rs = document.getElementById('st-restore'); if (rs) rs.hidden = true;
+    return;
   } catch (e) {
     stMsg('st-result', 'Stopped: ' + _esc(e.message || e) + '. If anything was written, use Undo below to restore the backup.', 'bad');
   }
@@ -3174,6 +3258,7 @@ async function renderBackups() {
   }).join('');
 }
 async function restoreBackup(name) {
+  if (!RD) { stMsg('st-result', 'Radio is disconnected. Press <b>Connect radio</b> to pick the drive again.', 'warn'); return; }
   var dir = 'BACKUP/' + name;
   try {
     var man = JSON.parse((await fsRead(dir + '/manifest.json')) || '{}');
@@ -3197,6 +3282,7 @@ function _loadScript(src) {
   return new Promise(function(res, rej){ var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
 }
 async function downloadZip() {
+  if (!RD) { stMsg('st-result', 'Radio is disconnected. Press <b>Connect radio</b> to pick the drive again.', 'warn'); return; }
   var p = buildPlan(); if (p.error) return;
   try {
     if (!window.JSZip) await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
