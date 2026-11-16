@@ -3113,9 +3113,14 @@ function buildRadioText(o) {
     // keep what logging/telemetry depend on switched on
     ['modelSFDisabled', 'radioGFDisabled', 'modelTelemetryDisabled'].forEach(function(k){ t = ySetScalar(t, k, 0); });
   }
-  // Belt and braces: if our checksum is ever wrong, this tells EdgeTX to accept
-  // the file once rather than reset the radio. It clears the flag itself.
-  t = ySetScalar(t, 'manuallyEdited', 1);
+  // Force manuallyEdited to 0. Do NOT set it to 1: EdgeTX 2.12's
+  // writeGeneralSettings() computes the file checksum BEFORE clearing this flag,
+  // so if it is 1 when the radio saves, the radio writes a file whose checksum
+  // does not match its own contents -- and the next boot rejects that file and
+  // resets to factory defaults. Clearing it here also stops a stray 1 left by a
+  // previous tool being carried forward.
+  // Ref: radio/src/storage/sdcard_yaml.cpp writeGeneralSettings()
+  t = ySetScalar(t, 'manuallyEdited', 0);
   if (nl === '\r\n') t = t.replace(/\n/g, '\r\n');
   return withRadioChecksum(t);
 }
