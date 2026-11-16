@@ -1403,6 +1403,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <div id="lg-card-list"></div>
       </div>
       <div class="st-actions" style="margin-top:8px">
+        <button class="btn btn-primary" id="lg-connect" onclick="mdConnect()" hidden>Connect radio to list its firmware</button>
         <label class="btn btn-ghost">Or choose a .bin from this computer
           <input type="file" id="lg-fw" accept=".bin" hidden onchange="lgLoadFw(this.files[0])"></label>
       </div>
@@ -1445,7 +1446,8 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <button class="btn btn-primary" id="lg-tocard" onclick="lgSaveToCard()" hidden>Save to radio's card</button>
         <button class="btn btn-ghost" id="lg-save" onclick="lgSave()">Download a copy instead</button>
       </div>
-      <div class="st-msg warn" id="lg-nocard" hidden>No radio connected, so I cannot write to its card. <b>Connect it on the Start tab</b> and come back and the <i>Save to radio's card</i> button appears. Otherwise download the file and copy it into <code>FIRMWARE/</code> on the card yourself.</div>
+      <div class="st-msg warn" id="lg-nocard" hidden>No radio connected, so I cannot write to its card.
+        <div class="st-actions" style="margin-top:8px"><button class="btn btn-primary" onclick="mdConnect()">Connect radio</button></div></div>
       <div class="st-msg" id="lg-msg" hidden></div>
     </div>
 
@@ -1468,7 +1470,8 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 <div class="setup-card st-step">
     <h3>Tones &amp; haptics</h3>
     <div class="sub" style="margin:-4px 0 10px">Beeps, volumes and buzz. Written to <code>RADIO/radio.yml</code> with a recalculated checksum, so the radio accepts the file.</div>
-    <div id="md-noradio" class="st-msg warn">Connect the radio on the <b>Start</b> tab first.</div>
+    <div id="md-noradio" class="st-msg warn">No radio connected.
+      <div class="st-actions" style="margin-top:8px"><button class="btn btn-primary" onclick="mdConnect()">Connect radio</button></div></div>
     <div id="md-tones-body" hidden>
       <div class="md-grid">
         <label>Beeps<select id="md-beepMode">
@@ -1651,6 +1654,14 @@ async function applyTones() {
   }
   btn.disabled = false; btn.textContent = 'Back up and apply tones';
 }
+// Connecting belongs wherever the user needs it, not only on the Start tab.
+async function mdConnect() {
+  await connectRadio();
+  if (typeof renderMods === 'function') renderMods();
+  if (typeof lgScanCard === 'function') { await lgScanCard(); }
+  if (typeof lgSyncButtons === 'function') lgSyncButtons();
+}
+
 // ── Mods: pick a job, then show only that ──
 function mdShow(view) {
   ['home','logo','audio'].forEach(function(v){
@@ -1678,7 +1689,13 @@ async function lgScanCard() {
   var box = document.getElementById('lg-card-box');
   var list = document.getElementById('lg-card-list');
   if (!box) return;
-  if (!RD || RD.demo || !RD.root) { box.hidden = true; return; }
+  var cb = document.getElementById('lg-connect');
+  if (!RD || RD.demo || !RD.root) {
+    box.hidden = true;
+    if (cb) cb.hidden = false;
+    return;
+  }
+  if (cb) cb.hidden = true;
   var names = (await fsList('FIRMWARE')).filter(function(n){ return /\.bin$/i.test(n); });
   if (!names.length) { box.hidden = true; return; }
   list.innerHTML = names.map(function(n){
@@ -1892,7 +1909,7 @@ function lgSyncButtons() {
   var tc = document.getElementById('lg-tocard');
   if (tc) tc.hidden = !(live && LG.fw);
   var dl = document.getElementById('lg-save');
-  if (dl) dl.textContent = live ? 'Download a copy instead' : 'Download the patched firmware';
+  if (dl) dl.textContent = live ? 'Download a copy as well' : 'Download the patched firmware';
   var hint = document.getElementById('lg-nocard');
   if (hint) hint.hidden = !(LG.fw && !live);
 }
