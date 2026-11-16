@@ -615,6 +615,26 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 .btn-sm{padding:4px 10px;font-size:11px}
 
 .lg-card-box{margin-top:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.14);border-radius:8px}
+
+.lg-import{margin-top:8px;border:1.5px dashed rgba(255,255,255,.28);border-radius:12px;min-height:190px;display:flex;align-items:center;justify-content:center;cursor:pointer;text-align:center;padding:16px;transition:border-color .15s,background .15s;overflow:hidden}
+.lg-import:hover{border-color:rgba(255,255,255,.5)}
+.lg-import.over{border-color:#ff3ea5;background:rgba(255,62,165,.08)}
+.lg-import.has-img{border-style:solid;padding:8px}
+.lg-import #lg-import-empty{display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.85}
+.lg-import-title{font-weight:700;letter-spacing:.06em;font-size:15px}
+.lg-src{max-width:100%;max-height:260px;object-fit:contain;border-radius:6px}
+.lg-screen{padding:7px;border-radius:7px;background:#20242a;border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.lg-screen canvas{display:block;width:256px;height:128px;image-rendering:pixelated;background:#cfe3c8}
+
+.md-pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.md-pick-btn{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:26px 18px;border-radius:14px;cursor:pointer;background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.16);color:inherit;font:inherit;transition:border-color .15s,background .15s,transform .1s}
+.md-pick-btn:hover{border-color:#ff3ea5;background:rgba(255,62,165,.08);transform:translateY(-1px)}
+.md-pick-name{font-size:16px;font-weight:700;letter-spacing:.02em}
+.md-pick-sub{font-size:12px;opacity:.7;max-width:260px}
+.md-back{margin-bottom:12px}
+.md-hazard{border:1.5px solid #e3a008;background:rgba(227,160,8,.10);border-radius:12px;padding:16px 18px}
+.md-hazard-head{display:flex;align-items:center;gap:12px;color:#f0b429}
+.md-hazard-head b{font-size:15px}
 </style>
 
 <!-- ── HEADER ── -->
@@ -1335,7 +1355,116 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 <!-- ══════════════ MODS ══════════════ -->
 <section class="tab-panel" id="tab-mods">
 
-  <div class="setup-card st-step">
+  <div id="md-home">
+    <div class="md-pick">
+      <button class="md-pick-btn" onclick="mdShow('logo')">
+        <svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="14" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3 15l5-4 4 3 3-2.5 6 4.5"/></svg>
+        <span class="md-pick-name">Startup image</span>
+        <span class="md-pick-sub">Replace the logo the radio shows when it powers on</span>
+      </button>
+      <button class="md-pick-btn" onclick="mdShow('audio')">
+        <svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a7.5 7.5 0 010 11"/></svg>
+        <span class="md-pick-name">Sound</span>
+        <span class="md-pick-sub">Beeps, volumes, haptics and voice call-outs</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="md-view-logo" hidden>
+    <button class="btn btn-ghost btn-sm md-back" onclick="mdShow('home')">&larr; Back to Mods</button>
+
+    <div class="md-hazard" id="lg-gate">
+      <div class="md-hazard-head">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3.2L1.8 20.8h20.4z"/><path d="M12 9.5v5"/><circle cx="12" cy="17.6" r=".9" fill="currentColor" stroke="none"/></svg>
+        <div><b>Read this before you change the startup image</b></div>
+      </div>
+      <div class="sub" style="margin-top:8px">The logo lives <b>inside the firmware</b>, so changing it means re-flashing the radio. If a flash is interrupted or the wrong file is used, the radio will not start normally and you recover it from the <b>bootloader</b>. Check you can reach the bootloader <b>before</b> you change anything.</div>
+      <ol class="steps-list" style="margin-top:8px">
+        <li>Switch the radio <b>off</b> and unplug the USB cable.</li>
+        <li>Hold <b>both horizontal trims inward</b>, towards the centre, and keep holding.</li>
+        <li>Press <b>power</b>. The bootloader screen appears instead of the normal start-up.</li>
+        <li>Power off again. That is the screen you would flash or recover from.</li>
+      </ol>
+      <div class="sub" style="margin-top:8px"><b>If you did not see the bootloader, stop here.</b> Do not flash anything until you can reach it. Only use a <code>.bin</code> for your radio and for the version you are already running &mdash; this app cannot check that for you.</div>
+      <div class="st-actions" style="margin-top:10px">
+        <button class="btn btn-primary" onclick="lgUnlock()">I reached the bootloader &mdash; continue</button>
+      </div>
+    </div>
+
+    <div id="lg-work" hidden>
+<div class="setup-card st-step">
+    <h3>Logo</h3>
+    <div class="sub" style="margin:-4px 0 10px">The Pocket's start-up logo lives <b>inside the firmware</b>, not on the SD card. This swaps it for your own picture and gives you back a firmware file to flash.</div>
+
+    <div class="md-logo-step"><b>1. Firmware file</b>
+      <div class="sub">It must be the <b>same version already on your radio</b> &mdash; flashing a different one is a firmware upgrade, not a logo change.</div>
+      <div id="lg-card-box" class="lg-card-box" hidden>
+        <div class="sub" style="margin-bottom:6px">Found on the radio's card, in <code>FIRMWARE/</code>:</div>
+        <div id="lg-card-list"></div>
+      </div>
+      <div class="st-actions" style="margin-top:8px">
+        <label class="btn btn-ghost">Or choose a .bin from this computer
+          <input type="file" id="lg-fw" accept=".bin" hidden onchange="lgLoadFw(this.files[0])"></label>
+      </div>
+      <div class="st-msg" id="lg-fw-msg" hidden></div>
+    </div>
+
+    <div class="md-logo-step" id="lg-step2" hidden><b>2. Create your splash screen</b>
+
+      <div id="lg-drop" class="lg-import"
+           ondragover="lgDragOver(event,true)" ondragleave="lgDragOver(event,false)" ondrop="lgDrop(event)"
+           onclick="document.getElementById('lg-img').click()">
+        <div id="lg-import-empty">
+          <svg width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><path d="M12 3v12M7.5 10.5L12 15l4.5-4.5"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+          <div class="lg-import-title">CLICK TO IMPORT AN IMAGE</div>
+          <div class="lg-drop-sub">or drag one here &mdash; PNG, JPG, BMP, SVG, any size</div>
+        </div>
+        <img id="lg-src" class="lg-src" hidden alt="">
+        <input type="file" id="lg-img" accept="image/*" hidden onchange="lgLoadImg(this.files[0])">
+      </div>
+
+      <div class="md-logo-ctl" id="lg-ctl" hidden>
+        <label>Threshold <input type="range" id="lg-thr" min="1" max="254" value="128" oninput="lgRender()"></label>
+        <label class="tgl-inline"><input type="checkbox" id="lg-inv" onchange="lgRender()"> Invert</label>
+        <label class="tgl-inline"><input type="checkbox" id="lg-fit" checked onchange="lgRender()"> Keep aspect</label>
+        <span class="lg-note" id="lg-note"></span>
+      </div>
+
+      <div class="st-actions" id="lg-adjust-row" hidden style="margin-top:10px">
+        <button class="btn btn-primary" onclick="lgAdjust()">Adjust to the Pocket's screen</button>
+        <button class="btn btn-ghost" onclick="lgReset()">Start over</button>
+      </div>
+    </div>
+
+    <div class="md-logo-step" id="lg-step3" hidden><b>3. How it will look</b>
+      <div class="md-logo-prev">
+        <div><div class="lg-screen"><canvas id="lg-cur" width="128" height="64"></canvas></div><span>on the radio now</span></div>
+        <div><div class="lg-screen"><canvas id="lg-new" width="128" height="64"></canvas></div><span id="lg-new-cap">after flashing</span></div>
+      </div>
+      <div class="st-actions" id="lg-save-row" hidden style="margin-top:12px">
+        <button class="btn btn-primary" id="lg-tocard" onclick="lgSaveToCard()" hidden>Save to radio's card</button>
+        <button class="btn btn-ghost" id="lg-save" onclick="lgSave()">Download a copy instead</button>
+      </div>
+      <div class="st-msg" id="lg-msg" hidden></div>
+    </div>
+
+    <div class="md-logo-step"><b>4. Flash it from the radio</b>
+      <div class="sub">Saving to the card means the radio can flash itself &mdash; no PC software needed.</div>
+      <ol class="steps-list" style="margin-top:6px">
+        <li>Unplug the USB cable.</li>
+        <li>Hold <b>both horizontal trims inward</b> (towards the centre) and press <b>power</b>. The bootloader appears instead of the normal start-up.</li>
+        <li>Choose <b>Write Firmware</b>, pick your <code>-logo.bin</code> file, and confirm.</li>
+        <li>When it finishes, power off and back on normally.</li>
+      </ol>
+      <div class="sub" style="margin-top:6px">Your models and settings live on the SD card, so a firmware write does not touch them. If you would rather use EdgeTX Companion, the downloaded copy works there too: <i>Radio &rarr; Write Firmware to Radio</i>, radio switched off.</div>
+    </div>
+  </div>
+    </div>
+  </div>
+
+  <div id="md-view-audio" hidden>
+    <button class="btn btn-ghost btn-sm md-back" onclick="mdShow('home')">&larr; Back to Mods</button>
+<div class="setup-card st-step">
     <h3>Tones &amp; haptics</h3>
     <div class="sub" style="margin:-4px 0 10px">Beeps, volumes and buzz. Written to <code>RADIO/radio.yml</code> with a recalculated checksum, so the radio accepts the file.</div>
     <div id="md-noradio" class="st-msg warn">Connect the radio on the <b>Start</b> tab first.</div>
@@ -1368,8 +1497,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
       <div class="st-msg" id="md-tones-msg" hidden></div>
     </div>
   </div>
-
-  <div class="setup-card st-step">
+<div class="setup-card st-step">
     <h3>Voices</h3>
     <div class="sub" style="margin:-4px 0 10px">Sound files in <code id="md-snd-path">SOUNDS/en</code>. The radio plays <b>16-bit PCM mono WAV at 32000 Hz</b>; anything else may be silent or distorted.</div>
     <div id="md-voice-list" class="plan-list-wrap"></div>
@@ -1380,68 +1508,6 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
     </div>
     <div class="st-msg" id="md-voice-msg" hidden></div>
   </div>
-
-  <div class="setup-card st-step">
-    <h3>Logo</h3>
-    <div class="sub" style="margin:-4px 0 10px">The Pocket's start-up logo lives <b>inside the firmware</b>, not on the SD card. This swaps it for your own picture and gives you back a firmware file to flash.</div>
-
-    <div class="md-logo-step"><b>1. Firmware file</b>
-      <div class="sub">It must be the <b>same version already on your radio</b> &mdash; flashing a different one is a firmware upgrade, not a logo change.</div>
-      <div id="lg-card-box" class="lg-card-box" hidden>
-        <div class="sub" style="margin-bottom:6px">Found on the radio's card, in <code>FIRMWARE/</code>:</div>
-        <div id="lg-card-list"></div>
-      </div>
-      <div class="st-actions" style="margin-top:8px">
-        <label class="btn btn-ghost">Or choose a .bin from this computer
-          <input type="file" id="lg-fw" accept=".bin" hidden onchange="lgLoadFw(this.files[0])"></label>
-      </div>
-      <div class="st-msg" id="lg-fw-msg" hidden></div>
-    </div>
-
-    <div class="md-logo-step" id="lg-step2" hidden><b>2. Create your splash screen</b>
-      <div class="sub">Drop a picture in. It gets fitted to 128&times;64 and turned into pure black and white automatically &mdash; the sliders are only there if you want to argue with it.</div>
-
-      <div id="lg-drop" class="lg-drop"
-           ondragover="lgDragOver(event,true)" ondragleave="lgDragOver(event,false)" ondrop="lgDrop(event)"
-           onclick="document.getElementById('lg-img').click()">
-        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
-        <div><b>Drag an image here</b></div>
-        <div class="lg-drop-sub">or click to choose &mdash; PNG, JPG, BMP, SVG, anything</div>
-        <input type="file" id="lg-img" accept="image/*" hidden onchange="lgLoadImg(this.files[0])">
-      </div>
-
-      <div class="md-logo-ctl" id="lg-ctl" hidden>
-        <button class="btn btn-ghost btn-sm" onclick="lgAuto()">Auto-adjust again</button>
-        <label>Threshold <input type="range" id="lg-thr" min="1" max="254" value="128" oninput="lgRender()"></label>
-        <label class="tgl-inline"><input type="checkbox" id="lg-inv" onchange="lgRender()"> Invert</label>
-        <label class="tgl-inline"><input type="checkbox" id="lg-fit" checked onchange="lgRender()"> Keep aspect</label>
-        <span class="lg-note" id="lg-note"></span>
-      </div>
-    </div>
-
-    <div class="md-logo-step" id="lg-step3" hidden><b>3. Preview</b>
-      <div class="sub">Left: what is in the firmware now. Right: what it will become.</div>
-      <div class="md-logo-prev">
-        <div><canvas id="lg-cur" width="128" height="64"></canvas><span>current</span></div>
-        <div><canvas id="lg-new" width="128" height="64"></canvas><span>new</span></div>
-      </div>
-      <div class="st-actions" style="margin-top:10px">
-        <button class="btn btn-primary" id="lg-tocard" onclick="lgSaveToCard()" hidden>Save to radio's card</button>
-        <button class="btn btn-ghost" id="lg-save" onclick="lgSave()">Download a copy instead</button>
-      </div>
-      <div class="st-msg" id="lg-msg" hidden></div>
-    </div>
-
-    <div class="md-logo-step"><b>4. Flash it from the radio</b>
-      <div class="sub">Saving to the card means the radio can flash itself &mdash; no PC software needed.</div>
-      <ol class="steps-list" style="margin-top:6px">
-        <li>Unplug the USB cable.</li>
-        <li>Hold <b>both horizontal trims inward</b> (towards the centre) and press <b>power</b>. The bootloader appears instead of the normal start-up.</li>
-        <li>Choose <b>Write Firmware</b>, pick your <code>-logo.bin</code> file, and confirm.</li>
-        <li>When it finishes, power off and back on normally.</li>
-      </ol>
-      <div class="sub" style="margin-top:6px">Your models and settings live on the SD card, so a firmware write does not touch them. If you would rather use EdgeTX Companion, the downloaded copy works there too: <i>Radio &rarr; Write Firmware to Radio</i>, radio switched off.</div>
-    </div>
   </div>
 
 </section>
@@ -1487,7 +1553,7 @@ function switchTab(id) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
   if (id === 'script') updateScript();
   if (id === 'setup' && typeof renderSetup === 'function') renderSetup();
-  if (id === 'mods' && typeof renderMods === 'function') renderMods();
+  if (id === 'mods' && typeof mdShow === 'function') mdShow('home');
 }
 
 // ══════════════════════════════════════════
@@ -1544,7 +1610,6 @@ function renderMods() {
   });
   document.getElementById('md-snd-path').textContent = 'SOUNDS/' + (RD.lang || 'en');
   renderVoiceList();
-  lgScanCard();
 }
 function mdMsg(id, html, cls) {
   var el = document.getElementById(id);
@@ -1585,6 +1650,24 @@ async function applyTones() {
   }
   btn.disabled = false; btn.textContent = 'Back up and apply tones';
 }
+// ── Mods: pick a job, then show only that ──
+function mdShow(view) {
+  ['home','logo','audio'].forEach(function(v){
+    var el = document.getElementById(v === 'home' ? 'md-home' : 'md-view-' + v);
+    if (el) el.hidden = (v !== view);
+  });
+  if (view === 'audio') renderMods();
+  if (view === 'logo' && LG.unlocked) lgScanCard();
+}
+// The startup image means re-flashing. Make them confirm they can reach the
+// bootloader before any of the tooling is reachable.
+function lgUnlock() {
+  LG.unlocked = true;
+  document.getElementById('lg-gate').hidden = true;
+  document.getElementById('lg-work').hidden = false;
+  lgScanCard();
+}
+
 // ── Logo: firmware already on the radio's card ──
 // The bootloader flashes .bin files from /FIRMWARE (radio/src/sdcard.h
 // FIRMWARES_PATH, read by openFirmwareDir() in bin_fw_files.cpp), so a patched
@@ -1631,6 +1714,34 @@ async function lgSaveToCard() {
     stMsgTo('lg-msg','Stopped: ' + _esc(e.message || e) + '. Nothing was flashed.','bad');
   }
   btn.disabled = false; btn.textContent = "Save to radio's card";
+}
+
+function lgClear(canvas) {
+  var c = canvas.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, 128, 64);
+  c.fillStyle = '#bbb'; c.font = '9px monospace'; c.textAlign = 'center';
+  c.fillText('not adjusted yet', 64, 35);
+}
+function lgAdjust() {
+  if (!LG.img) { stMsgTo('lg-msg','Import an image first.','warn'); return; }
+  LG.adjusted = true;
+  document.getElementById('lg-ctl').hidden = false;
+  document.getElementById('lg-save-row').hidden = false;
+  document.getElementById('lg-new-cap').textContent = 'after flashing';
+  lgAuto();
+}
+function lgReset() {
+  LG.img = null; LG.adjusted = false;
+  var el = document.getElementById('lg-src'); el.hidden = true; el.removeAttribute('src');
+  document.getElementById('lg-import-empty').hidden = false;
+  document.getElementById('lg-drop').classList.remove('has-img');
+  document.getElementById('lg-adjust-row').hidden = true;
+  document.getElementById('lg-ctl').hidden = true;
+  document.getElementById('lg-save-row').hidden = true;
+  document.getElementById('lg-img').value = '';
+  document.getElementById('lg-new-cap').textContent = 'press Adjust to see it';
+  lgClear(document.getElementById('lg-new'));
+  stMsgTo('lg-msg','', '');
 }
 
 // ── Logo: drop zone + automatic adjustment ──
@@ -1714,7 +1825,7 @@ function lgAuto() {
 //   1024 bytes of 1-bit data
 //   end marker    "SPE\0"                    -> 53 50 45 00
 // Byte layout:  b[128*(y>>3) + x] |= bit << (y&7)   with 1 = black pixel.
-var LG = { fw:null, off:0, size:1024, img:null, name:'' };
+var LG = { fw:null, off:0, size:1024, img:null, name:'', adjusted:false, unlocked:false };
 var LG_SPS = [0x53,0x50,0x53,0x00,0x80,0x40];
 var LG_SPE = [0x53,0x50,0x45,0x00];
 
@@ -1762,6 +1873,7 @@ function lgUseFw(buf, filename) {
   document.getElementById('lg-step3').hidden = false;
   var tc = document.getElementById('lg-tocard');
   if (tc) tc.hidden = !(RD && !RD.demo && RD.root);
+  if (!LG.adjusted) lgClear(document.getElementById('lg-new'));
   stMsgTo('lg-fw-msg', '<b>Splash found</b> in <code>' + _esc(filename) + '</code> at byte ' + off +
     ' of ' + buf.length + '. The logo currently inside it is shown below.', 'good');
   lgRender();
@@ -1774,11 +1886,17 @@ function lgLoadImg(f) {
   if (!f) return;
   var img = new Image(), url = URL.createObjectURL(f);
   img.onload = function(){
-    LG.img = img;
-    var c = document.getElementById('lg-ctl'); if (c) c.hidden = false;
-    lgAuto();
+    LG.img = img; LG.adjusted = false;
+    var el = document.getElementById('lg-src');
+    el.src = img.src; el.hidden = false;
+    document.getElementById('lg-import-empty').hidden = true;
+    document.getElementById('lg-drop').classList.add('has-img');
+    document.getElementById('lg-adjust-row').hidden = false;
+    document.getElementById('lg-ctl').hidden = true;
+    document.getElementById('lg-save-row').hidden = true;
+    document.getElementById('lg-new-cap').textContent = 'press Adjust to see it';
+    lgClear(document.getElementById('lg-new'));
     stMsgTo('lg-msg','', '');
-    URL.revokeObjectURL(url);
   };
   img.onerror = function(){ stMsgTo('lg-msg','Could not read that image.','bad'); URL.revokeObjectURL(url); };
   img.src = url;
@@ -1808,7 +1926,7 @@ function lgBits() {
   return b;
 }
 function lgRender() {
-  if (!LG.fw) return;
+  if (!LG.fw || !LG.adjusted) return;
   lgDrawBits(document.getElementById('lg-new'), lgBits());
 }
 function lgSave() {
