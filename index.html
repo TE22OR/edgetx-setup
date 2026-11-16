@@ -613,6 +613,8 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 .lg-drop-sub{font-size:11px;opacity:.6}
 .lg-note{font-size:11px;opacity:.7}
 .btn-sm{padding:4px 10px;font-size:11px}
+
+.lg-card-box{margin-top:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.14);border-radius:8px}
 </style>
 
 <!-- ── HEADER ── -->
@@ -1384,9 +1386,15 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
     <div class="sub" style="margin:-4px 0 10px">The Pocket's start-up logo lives <b>inside the firmware</b>, not on the SD card. This swaps it for your own picture and gives you back a firmware file to flash.</div>
 
     <div class="md-logo-step"><b>1. Firmware file</b>
-      <div class="sub">Download the <b>exact version already on your radio</b> from EdgeTX Buddy (pocket, <code>.bin</code>). Flashing a different version is a firmware change, not just a logo change.</div>
-      <label class="btn btn-ghost" style="margin-top:6px">Choose firmware .bin
-        <input type="file" id="lg-fw" accept=".bin" hidden onchange="lgLoadFw(this.files[0])"></label>
+      <div class="sub">It must be the <b>same version already on your radio</b> &mdash; flashing a different one is a firmware upgrade, not a logo change.</div>
+      <div id="lg-card-box" class="lg-card-box" hidden>
+        <div class="sub" style="margin-bottom:6px">Found on the radio's card, in <code>FIRMWARE/</code>:</div>
+        <div id="lg-card-list"></div>
+      </div>
+      <div class="st-actions" style="margin-top:8px">
+        <label class="btn btn-ghost">Or choose a .bin from this computer
+          <input type="file" id="lg-fw" accept=".bin" hidden onchange="lgLoadFw(this.files[0])"></label>
+      </div>
       <div class="st-msg" id="lg-fw-msg" hidden></div>
     </div>
 
@@ -1418,14 +1426,21 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <div><canvas id="lg-new" width="128" height="64"></canvas><span>new</span></div>
       </div>
       <div class="st-actions" style="margin-top:10px">
-        <button class="btn btn-primary" id="lg-save" onclick="lgSave()">Download patched firmware</button>
+        <button class="btn btn-primary" id="lg-tocard" onclick="lgSaveToCard()" hidden>Save to radio's card</button>
+        <button class="btn btn-ghost" id="lg-save" onclick="lgSave()">Download a copy instead</button>
       </div>
       <div class="st-msg" id="lg-msg" hidden></div>
     </div>
 
-    <div class="md-logo-step"><b>4. Flash it</b>
-      <div class="sub">This app only writes to SD cards &mdash; it cannot flash the radio. Use EdgeTX Companion: <i>Radio &rarr; Write Firmware to Radio</i>, with the radio <b>switched off</b> and connected by USB. Pick the patched file, then Write to TX.</div>
-      <div class="sub" style="margin-top:6px">Your models and settings live on the SD card, so a firmware write does not touch them &mdash; but only flash a build that matches the version you are already on.</div>
+    <div class="md-logo-step"><b>4. Flash it from the radio</b>
+      <div class="sub">Saving to the card means the radio can flash itself &mdash; no PC software needed.</div>
+      <ol class="steps-list" style="margin-top:6px">
+        <li>Unplug the USB cable.</li>
+        <li>Hold <b>both horizontal trims inward</b> (towards the centre) and press <b>power</b>. The bootloader appears instead of the normal start-up.</li>
+        <li>Choose <b>Write Firmware</b>, pick your <code>-logo.bin</code> file, and confirm.</li>
+        <li>When it finishes, power off and back on normally.</li>
+      </ol>
+      <div class="sub" style="margin-top:6px">Your models and settings live on the SD card, so a firmware write does not touch them. If you would rather use EdgeTX Companion, the downloaded copy works there too: <i>Radio &rarr; Write Firmware to Radio</i>, radio switched off.</div>
     </div>
   </div>
 
@@ -1529,6 +1544,7 @@ function renderMods() {
   });
   document.getElementById('md-snd-path').textContent = 'SOUNDS/' + (RD.lang || 'en');
   renderVoiceList();
+  lgScanCard();
 }
 function mdMsg(id, html, cls) {
   var el = document.getElementById(id);
@@ -1569,6 +1585,54 @@ async function applyTones() {
   }
   btn.disabled = false; btn.textContent = 'Back up and apply tones';
 }
+// ── Logo: firmware already on the radio's card ──
+// The bootloader flashes .bin files from /FIRMWARE (radio/src/sdcard.h
+// FIRMWARES_PATH, read by openFirmwareDir() in bin_fw_files.cpp), so a patched
+// build written there can be flashed by the radio itself - no PC tool needed.
+async function lgScanCard() {
+  var box = document.getElementById('lg-card-box');
+  var list = document.getElementById('lg-card-list');
+  if (!box) return;
+  if (!RD || RD.demo || !RD.root) { box.hidden = true; return; }
+  var names = (await fsList('FIRMWARE')).filter(function(n){ return /\.bin$/i.test(n); });
+  if (!names.length) { box.hidden = true; return; }
+  list.innerHTML = names.map(function(n){
+    return '<button class="btn btn-ghost btn-sm" style="margin:2px 4px 2px 0" onclick="lgFromCard(' +
+           JSON.stringify(n).replace(/"/g,'&quot;') + ')">' + _esc(n) + '</button>';
+  }).join('');
+  box.hidden = false;
+}
+async function lgFromCard(name) {
+  try {
+    var buf = await fsReadBin('FIRMWARE/' + name);
+    if (!buf) throw new Error('could not read that file off the card');
+    lgUseFw(buf, name);
+  } catch (e) {
+    stMsgTo('lg-fw-msg', 'Could not use that file: ' + (e.message || e) + '.', 'bad');
+  }
+}
+async function lgSaveToCard() {
+  if (!LG.fw || !LG.img) { stMsgTo('lg-msg','Load a firmware file and an image first.','warn'); return; }
+  if (!RD || RD.demo || !RD.root) { stMsgTo('lg-msg','Connect the radio on the Start tab first.','warn'); return; }
+  var btn = document.getElementById('lg-tocard');
+  btn.disabled = true; btn.textContent = 'Working…';
+  try {
+    var out = LG.fw.slice();
+    out.set(lgBits(), LG.off);
+    if (lgFind(out) !== LG.off) throw new Error('internal check failed, nothing written');
+    var name = (LG.name + '-logo.bin').replace(/[^A-Za-z0-9._-]/g,'_');
+    await fsWriteBin('FIRMWARE/' + name, out);
+    var back = await fsReadBin('FIRMWARE/' + name);
+    if (!back || back.length !== out.length) throw new Error('read-back check failed');
+    for (var i = 0; i < out.length; i++) if (back[i] !== out[i]) throw new Error('read-back mismatch at byte ' + i);
+    stMsgTo('lg-msg','<b>Written to <code>FIRMWARE/' + _esc(name) + '</code></b> and read back byte for byte. ' +
+      'Unplug, then hold both horizontal trims inward and press power to reach the bootloader, and choose Write Firmware.','good');
+  } catch (e) {
+    stMsgTo('lg-msg','Stopped: ' + _esc(e.message || e) + '. Nothing was flashed.','bad');
+  }
+  btn.disabled = false; btn.textContent = "Save to radio's card";
+}
+
 // ── Logo: drop zone + automatic adjustment ──
 function lgDragOver(e, on) {
   e.preventDefault(); e.stopPropagation();
@@ -1681,20 +1745,26 @@ async function lgLoadFw(f) {
     var buf = new Uint8Array(await f.arrayBuffer());
     if (buf.length > 4 && buf[0] === 0x55 && buf[1] === 0x46 && buf[2] === 0x32 && buf[3] === 0x0A)
       throw new Error('that is a UF2 file. Download the <code>.bin</code> build for the Pocket instead');
-    var off = lgFind(buf);
-    if (off < 0) throw new Error('no 128x64 splash found in this file. Check it is a Pocket (b/w) build and not a colour-radio or bootloader file');
-    LG.fw = buf; LG.off = off; LG.name = f.name.replace(/\.bin$/i,'');
-    lgDrawBits(document.getElementById('lg-cur'), buf.subarray(off, off + 1024));
-    document.getElementById('lg-step2').hidden = false;
-    document.getElementById('lg-step3').hidden = false;
-    stMsgTo('lg-fw-msg', '<b>Splash found</b> at byte ' + off + ' of ' + buf.length + '. Current logo shown below.', 'good');
-    lgRender();
+    lgUseFw(buf, f.name);
   } catch (e) {
     LG.fw = null;
     document.getElementById('lg-step2').hidden = true;
     document.getElementById('lg-step3').hidden = true;
     stMsgTo('lg-fw-msg', 'Could not use that file: ' + (e.message || e) + '.', 'bad');
   }
+}
+function lgUseFw(buf, filename) {
+  var off = lgFind(buf);
+  if (off < 0) throw new Error('no 128x64 splash found in this file. Check it is a Pocket (b/w) build and not a colour-radio or bootloader file');
+  LG.fw = buf; LG.off = off; LG.name = filename.replace(/\.bin$/i,'');
+  lgDrawBits(document.getElementById('lg-cur'), buf.subarray(off, off + 1024));
+  document.getElementById('lg-step2').hidden = false;
+  document.getElementById('lg-step3').hidden = false;
+  var tc = document.getElementById('lg-tocard');
+  if (tc) tc.hidden = !(RD && !RD.demo && RD.root);
+  stMsgTo('lg-fw-msg', '<b>Splash found</b> in <code>' + _esc(filename) + '</code> at byte ' + off +
+    ' of ' + buf.length + '. The logo currently inside it is shown below.', 'good');
+  lgRender();
 }
 function stMsgTo(id, html, cls) {
   var el = document.getElementById(id);
@@ -3229,6 +3299,23 @@ async function fsRead(path) {
     var fh = await d.getFileHandle(name);
     return await (await fh.getFile()).text();
   } catch (e) { return null; }
+}
+async function fsReadBin(path) {
+  if (RD.mem) { var f = RD.mem[path.toLowerCase()]; return f ? new Uint8Array(await f.arrayBuffer()) : null; }
+  try {
+    var ps = _parts(path), name = ps.pop();
+    var d = await fsDir(ps.join('/'));
+    var fh = await d.getFileHandle(name);
+    return new Uint8Array(await (await fh.getFile()).arrayBuffer());
+  } catch (e) { return null; }
+}
+async function fsWriteBin(path, bytes) {
+  var ps = _parts(path), name = ps.pop();
+  var d = await fsDir(ps.join('/'), true);
+  var fh = await d.getFileHandle(name, { create: true });
+  var w = await fh.createWritable();
+  await w.write(bytes);
+  await w.close();
 }
 async function fsExists(path) {
   if (RD.mem) return !!RD.mem[path.toLowerCase()];
