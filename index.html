@@ -594,6 +594,11 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 .site-foot .rule { display:flex; align-items:center; gap:14px; justify-content:center }
 .site-foot .rule::before, .site-foot .rule::after { content:""; height:1px; width:40px; background:var(--border2) }
 .site-foot .dot { color:var(--p1) }
+
+.md-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 14px}
+.md-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dim,#9aa)}
+.md-grid select{width:100%}
+.plan-list-wrap .plan-list{margin:0}
 </style>
 
 <!-- ── HEADER ── -->
@@ -643,6 +648,10 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
   <button class="tab-btn" data-tab="screen" onclick="switchTab('screen')">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="10" rx="2"/><path d="M5 14h6M8 12v2"/></svg>
     Screen
+  </button>
+  <button class="tab-btn" data-tab="mods" onclick="switchTab('mods')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M8 1.6l1.85 3.75 4.15.6-3 2.93.71 4.12L8 11.06l-3.71 1.94.71-4.12-3-2.93 4.15-.6z"/></svg>
+    Mods
   </button>
 </nav>
 
@@ -1307,6 +1316,64 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
   </div>
 </section>
 
+<!-- ══════════════ MODS ══════════════ -->
+<section class="tab-panel" id="tab-mods">
+
+  <div class="setup-card st-step">
+    <h3>Tones &amp; haptics</h3>
+    <div class="sub" style="margin:-4px 0 10px">Beeps, volumes and buzz. Written to <code>RADIO/radio.yml</code> with a recalculated checksum, so the radio accepts the file.</div>
+    <div id="md-noradio" class="st-msg warn">Connect the radio on the <b>Start</b> tab first.</div>
+    <div id="md-tones-body" hidden>
+      <div class="md-grid">
+        <label>Beeps<select id="md-beepMode">
+          <option value="mode_quiet">Quiet &mdash; no beeps at all</option>
+          <option value="mode_alarms">Alarms only</option>
+          <option value="mode_nokeys">All except key presses</option>
+          <option value="mode_all">All beeps</option></select></label>
+        <label>Beep volume<select id="md-beepVolume"></select></label>
+        <label>Beep length<select id="md-beepLength"></select></label>
+        <label>Beep pitch<select id="md-speakerPitch"></select></label>
+        <label>Master volume<select id="md-speakerVolume"></select></label>
+        <label>Voice / wav volume<select id="md-wavVolume"></select></label>
+        <label>Background volume<select id="md-backgroundVolume"></select></label>
+        <label>Vario volume<select id="md-varioVolume"></select></label>
+        <label>Haptic<select id="md-hapticMode">
+          <option value="mode_quiet">Off</option>
+          <option value="mode_alarms">Alarms only</option>
+          <option value="mode_nokeys">All except key presses</option>
+          <option value="mode_all">All</option></select></label>
+        <label>Haptic strength<select id="md-hapticStrength"></select></label>
+        <label>Haptic length<select id="md-hapticLength"></select></label>
+      </div>
+      <div class="st-actions" style="margin-top:10px">
+        <button class="btn btn-primary" id="md-tones-btn" onclick="applyTones()">Back up and apply tones</button>
+        <button class="btn btn-ghost" onclick="renderMods()">Reload from radio</button>
+      </div>
+      <div class="st-msg" id="md-tones-msg" hidden></div>
+    </div>
+  </div>
+
+  <div class="setup-card st-step">
+    <h3>Voices</h3>
+    <div class="sub" style="margin:-4px 0 10px">Sound files in <code id="md-snd-path">SOUNDS/en</code>. The radio plays <b>16-bit PCM mono WAV at 32000 Hz</b>; anything else may be silent or distorted.</div>
+    <div id="md-voice-list" class="plan-list-wrap"></div>
+    <div class="st-actions" style="margin-top:10px">
+      <label class="btn btn-ghost">Add or replace .wav files
+        <input type="file" id="md-voice-input" accept=".wav,audio/wav" multiple hidden onchange="addVoices(this.files)">
+      </label>
+    </div>
+    <div class="st-msg" id="md-voice-msg" hidden></div>
+  </div>
+
+  <div class="setup-card st-step">
+    <h3>Logo</h3>
+    <div class="st-msg warn" style="margin-bottom:8px"><b>Not possible on the Pocket.</b> On 128&times;64 black-and-white radios the start-up logo is compiled into the firmware (<code>splash.lbm</code>), not read from the SD card. Dropping a <code>splash.png</code> or <code>splash.bmp</code> on the card does nothing &mdash; only colour-screen radios load one.</div>
+    <div class="sub">To change it you have to build or patch the firmware image before flashing it, which is outside what this app does. EdgeTX Buddy is the usual route. The screen you <i>can</i> change is the telemetry view &mdash; see the <b>Screen</b> tab and the REC script.</div>
+  </div>
+
+</section>
+
+
 <footer class="site-foot">
   <div class="rule">Built between crashes <span class="dot">•</span> Wales</div>
   <div>Free and open source · GPL-2.0 · Not affiliated with EdgeTX or RadioMaster</div>
@@ -1347,6 +1414,164 @@ function switchTab(id) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
   if (id === 'script') updateScript();
   if (id === 'setup' && typeof renderSetup === 'function') renderSetup();
+  if (id === 'mods' && typeof renderMods === 'function') renderMods();
+}
+
+// ══════════════════════════════════════════
+//  MODS
+// ══════════════════════════════════════════
+// EdgeTX YAML encodings, from radio/src/storage/yaml/yaml_datastructs_128x64.cpp:
+//   *_5pos fields  (beepVolume, wavVolume, backgroundVolume, varioVolume,
+//                   beepLength, hapticStrength, hapticLength)  YAML = UI + 2, range 0..4
+//   speakerVolume  YAML = internal + VOLUME_LEVEL_DEF(12), range 0..23
+//   speakerPitch   YAML = pitch * 15, pitch 0..20
+//   beepMode / hapticMode  enum: mode_quiet | mode_alarms | mode_nokeys | mode_all
+var MD_5POS = ['md-beepVolume','md-beepLength','md-wavVolume','md-backgroundVolume',
+               'md-varioVolume','md-hapticStrength','md-hapticLength'];
+var MD_5POS_LABELS = ['–– (quietest)','–','normal','+','++ (loudest)'];
+var MD_LEN_LABELS  = ['shortest','short','normal','long','longest'];
+
+function mdFill(id, labels, values) {
+  var el = document.getElementById(id); if (!el || el.options.length) return;
+  for (var i = 0; i < values.length; i++) {
+    var o = document.createElement('option');
+    o.value = values[i]; o.textContent = labels[i];
+    el.appendChild(o);
+  }
+}
+function mdSetup() {
+  MD_5POS.forEach(function(id){
+    var labels = (id === 'md-beepLength' || id === 'md-hapticLength') ? MD_LEN_LABELS : MD_5POS_LABELS;
+    mdFill(id, labels, [0,1,2,3,4]);
+  });
+  var vols = [], vlab = [];
+  for (var v = 0; v <= 23; v++) { vols.push(v); vlab.push(v === 0 ? '0 (mute)' : String(v)); }
+  mdFill('md-speakerVolume', vlab, vols);
+  var p = [], plab = [];
+  for (var k = 0; k <= 20; k++) { p.push(k*15); plab.push(k === 0 ? 'default' : '+' + (k*15) + ' Hz'); }
+  mdFill('md-speakerPitch', plab, p);
+}
+function mdGet(key, dflt) {
+  var v = RD && RD.radioYml ? yGetScalar(RD.radioYml, key) : null;
+  return v === null || v === '' ? dflt : v;
+}
+function renderMods() {
+  mdSetup();
+  var live = !!(RD && RD.radioYml);
+  document.getElementById('md-noradio').hidden = live;
+  document.getElementById('md-tones-body').hidden = !live;
+  if (!live) { document.getElementById('md-voice-list').innerHTML = ''; return; }
+  [['md-beepMode','beepMode','mode_all'],['md-hapticMode','hapticMode','mode_nokeys'],
+   ['md-beepVolume','beepVolume','2'],['md-beepLength','beepLength','2'],
+   ['md-wavVolume','wavVolume','2'],['md-backgroundVolume','backgroundVolume','2'],
+   ['md-varioVolume','varioVolume','2'],['md-hapticStrength','hapticStrength','2'],
+   ['md-hapticLength','hapticLength','2'],['md-speakerVolume','speakerVolume','12'],
+   ['md-speakerPitch','speakerPitch','0']].forEach(function(r){
+    var el = document.getElementById(r[0]); if (el) el.value = mdGet(r[1], r[2]);
+  });
+  document.getElementById('md-snd-path').textContent = 'SOUNDS/' + (RD.lang || 'en');
+  renderVoiceList();
+}
+function mdMsg(id, html, cls) {
+  var el = document.getElementById(id);
+  el.className = 'st-msg' + (cls ? ' ' + cls : ''); el.innerHTML = html; el.hidden = !html;
+}
+async function applyTones() {
+  if (!RD || RD.readOnly || !RD.radioYml) { mdMsg('md-tones-msg','Connect the radio first.','warn'); return; }
+  if (RD.demo) { mdMsg('md-tones-msg','Demo only: nothing was written.','warn'); return; }
+  var btn = document.getElementById('md-tones-btn');
+  btn.disabled = true; btn.textContent = 'Working…';
+  try {
+    var src = RD.radioYml;
+    var nl = /\r\n/.test(src) ? '\r\n' : '\n';
+    var t = src.replace(/\r\n/g, '\n');
+    [['beepMode','md-beepMode'],['hapticMode','md-hapticMode'],['beepVolume','md-beepVolume'],
+     ['beepLength','md-beepLength'],['wavVolume','md-wavVolume'],['backgroundVolume','md-backgroundVolume'],
+     ['varioVolume','md-varioVolume'],['hapticStrength','md-hapticStrength'],
+     ['hapticLength','md-hapticLength'],['speakerVolume','md-speakerVolume'],
+     ['speakerPitch','md-speakerPitch']].forEach(function(r){
+      var el = document.getElementById(r[1]); if (el) t = ySetScalar(t, r[0], el.value);
+    });
+    t = ySetScalar(t, 'manuallyEdited', 0);
+    if (nl === '\r\n') t = t.replace(/\n/g, '\r\n');
+    t = withRadioChecksum(t);
+
+    var bdir = 'BACKUP/' + APP_ID + '-' + stamp();
+    await fsWrite(bdir + '/RADIO/radio.yml', RD.radioYml);
+    if ((await fsRead(bdir + '/RADIO/radio.yml')) !== RD.radioYml) throw new Error('Backup check failed, nothing changed');
+    await fsWrite('RADIO/radio.yml', t);
+    var back = await fsRead('RADIO/radio.yml');
+    if (back !== t) throw new Error('Read-back check failed on RADIO/radio.yml');
+    if (parseInt(back.slice(10), 10) !== parseInt(withRadioChecksum(back).slice(10), 10))
+      throw new Error('Checksum self-check failed - radio.yml not changed');
+    RD.radioYml = t;
+    mdMsg('md-tones-msg', '<b>Done.</b> Backup in <code>' + bdir + '</code>. Unplug the USB cable, then switch the radio off and on.', 'good');
+  } catch (e) {
+    mdMsg('md-tones-msg', 'Stopped: ' + _esc(e.message || e) + '. Nothing further was written; use Undo on the Start tab if needed.', 'bad');
+  }
+  btn.disabled = false; btn.textContent = 'Back up and apply tones';
+}
+// ── Voices ──
+function wavInfo(buf) {
+  var d = new DataView(buf);
+  if (buf.byteLength < 44) return { ok:false, why:'too short to be a WAV' };
+  var rd = function(o){ return String.fromCharCode(d.getUint8(o),d.getUint8(o+1),d.getUint8(o+2),d.getUint8(o+3)); };
+  if (rd(0) !== 'RIFF' || rd(8) !== 'WAVE') return { ok:false, why:'not a RIFF/WAVE file' };
+  var off = 12, fmt = null;
+  while (off + 8 <= buf.byteLength) {
+    var id = rd(off), sz = d.getUint32(off + 4, true);
+    if (id === 'fmt ') { fmt = off + 8; break; }
+    off += 8 + sz + (sz & 1);
+  }
+  if (fmt === null) return { ok:false, why:'no fmt chunk' };
+  var info = { ok:true, format:d.getUint16(fmt,true), channels:d.getUint16(fmt+2,true),
+               rate:d.getUint32(fmt+4,true), bits:d.getUint16(fmt+14,true) };
+  info.good = info.format === 1 && info.channels === 1 && info.bits === 16 && info.rate === 32000;
+  return info;
+}
+function renderVoiceList() {
+  var box = document.getElementById('md-voice-list');
+  if (!RD || !RD.voices) { box.innerHTML = ''; return; }
+  var rows = Object.keys(RD.voices).map(function(n){
+    var has = RD.voices[n];
+    return '<li><span class="plan-tag ' + (has ? 'edit' : 'new') + '">' + (has ? 'on card' : 'missing') +
+           '</span><span><code>' + n + '.wav</code></span></li>';
+  }).join('');
+  box.innerHTML = '<ul class="plan-list">' + rows + '</ul>';
+}
+async function addVoices(files) {
+  if (!files || !files.length) return;
+  if (!RD || RD.readOnly || RD.demo) { mdMsg('md-voice-msg','Connect the radio first.','warn'); return; }
+  var dir = 'SOUNDS/' + (RD.lang || 'en'), done = [], warn = [];
+  try {
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      if (!/\.wav$/i.test(f.name)) { warn.push(_esc(f.name) + ' - not a .wav, skipped'); continue; }
+      var buf = await f.arrayBuffer();
+      var inf = wavInfo(buf);
+      if (!inf.ok) { warn.push(_esc(f.name) + ' - ' + inf.why + ', skipped'); continue; }
+      if (!inf.good) warn.push(_esc(f.name) + ' - ' + inf.rate + ' Hz, ' + inf.bits + '-bit, ' +
+        (inf.channels === 1 ? 'mono' : inf.channels + ' ch') + '; the radio wants 32000 Hz 16-bit mono. Written anyway.');
+      var d = await fsDir(dir, true);
+      var fh = await d.getFileHandle(f.name, { create: true });
+      var w = await fh.createWritable();
+      await w.write(buf);
+      await w.close();
+      done.push(_esc(f.name));
+    }
+    RD.voices = RD.voices || {};
+    for (var v = 0; v < VOICE_FILES.length; v++)
+      RD.voices[VOICE_FILES[v]] = await fsExists(dir + '/' + VOICE_FILES[v] + '.wav');
+    renderVoiceList();
+    mdMsg('md-voice-msg',
+      (done.length ? '<b>Copied to <code>' + dir + '</code>:</b> ' + done.join(', ') + '. ' : '') +
+      (warn.length ? '<br>' + warn.join('<br>') : '') +
+      (done.length ? '<br>Unplug, then switch the radio off and on.' : 'Nothing was written.'),
+      warn.length ? 'warn' : 'good');
+  } catch (e) {
+    mdMsg('md-voice-msg', 'Stopped: ' + _esc(e.message || e), 'bad');
+  }
+  document.getElementById('md-voice-input').value = '';
 }
 
 // ══════════════════════════════════════════
@@ -3229,7 +3454,7 @@ async function applyPlan() {
     var o = p.o;
     stMsg('st-result',
       '<b>Done.</b> Backup saved to <code>' + bdir + '</code>.<ol class="steps-list" style="margin-top:6px">' +
-      '<li><b>Eject the radio\'s drive</b> on your computer, then unplug the USB cable. The app has already let go of the drive, so eject will work. The radio reloads.</li>' +
+      '<li><b>Unplug the USB cable.</b> The app has released the drive, so there is nothing to eject — if your computer still refuses, that is the radio not answering, not a stuck file. Then <b>switch the radio off and on</b>: it stays running when you unplug, and a power cycle is the only way to be sure it has loaded what was just written.</li>' +
       '<li>Hold <kbd>MDL</kbd>, highlight <b>' + _esc(o.name) + '</b>, press <kbd>ENTER</kbd> and choose <b>Select Model</b>.</li>' +
       '<li>Bind it to your quad (Tools → ExpressLRS → Bind, or a shared binding phrase).</li>' +
       '<li>In Betaflight\'s Modes tab, set ARM and your flight modes to match ' + o.arm + (o.mode ? ' and ' + o.mode : '') + '.</li>' +
