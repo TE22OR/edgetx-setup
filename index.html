@@ -635,6 +635,11 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 .md-hazard{border:1.5px solid #e3a008;background:rgba(227,160,8,.10);border-radius:12px;padding:16px 18px}
 .md-hazard-head{display:flex;align-items:center;gap:12px;color:#f0b429}
 .md-hazard-head b{font-size:15px}
+
+.lg-connect-help{flex-basis:100%;margin-top:8px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);font-size:12px;opacity:.9}
+
+.lg-choice{margin-top:10px;display:grid;gap:7px;font-size:12px;opacity:.82}
+.lg-choice div{padding-left:10px;border-left:2px solid rgba(255,255,255,.18)}
 </style>
 
 <!-- ── HEADER ── -->
@@ -1403,9 +1408,22 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <div id="lg-card-list"></div>
       </div>
       <div class="st-actions" style="margin-top:8px">
-        <button class="btn btn-primary" id="lg-connect" onclick="mdConnect()" hidden>Connect radio to list its firmware</button>
-        <label class="btn btn-ghost">Or choose a .bin from this computer
+        <button class="btn btn-primary" id="lg-connect" onclick="mdConnect()" hidden>Connect the radio</button>
+        <div class="lg-connect-help" id="lg-connect-help" hidden>
+          <b>Connecting opens a folder picker</b> on your computer. It looks blank until you point it at the radio.
+          <ol class="steps-list" style="margin-top:6px">
+            <li>Radio switched <b>on</b>, plugged in with a <b>data</b> USB cable (not charge-only).</li>
+            <li>On the radio's screen choose <b>USB Storage (SD)</b>.</li>
+            <li>In the picker, select the radio's <b>drive itself</b> &mdash; the one with <code>RADIO</code> and <code>MODELS</code> folders in it. Not a folder inside it.</li>
+            <li>Click <b>Select Folder</b>, then <b>Allow</b> if your browser asks.</li>
+          </ol>
+        </div>
+        <label class="btn btn-ghost">Choose a .bin from this computer
           <input type="file" id="lg-fw" accept=".bin" hidden onchange="lgLoadFw(this.files[0])"></label>
+      </div>
+      <div class="lg-choice">
+        <div><b>Connect the radio</b> &mdash; the app can then use the firmware already on the card <i>and</i> save the finished one straight back to it. Everything happens here.</div>
+        <div><b>Choose a .bin</b> &mdash; reads that one file only. The app cannot reach the card, so you get a download and have to copy it into <code>FIRMWARE/</code> yourself.</div>
       </div>
       <div class="st-msg" id="lg-fw-msg" hidden></div>
     </div>
@@ -1657,9 +1675,15 @@ async function applyTones() {
 // Connecting belongs wherever the user needs it, not only on the Start tab.
 async function mdConnect() {
   await connectRadio();
+  var live = !!(RD && !RD.demo && RD.root);
   if (typeof renderMods === 'function') renderMods();
   if (typeof lgScanCard === 'function') { await lgScanCard(); }
   if (typeof lgSyncButtons === 'function') lgSyncButtons();
+  if (!live) {
+    stMsgTo('lg-fw-msg', 'No drive was picked, so nothing is connected. The picker opens on your computer\'s folders and looks empty until you point it at the radio: switch the radio on, plug in a <b>data</b> USB cable, choose <b>USB Storage (SD)</b> on the radio, then press the button again and select the drive that appears.', 'warn');
+  } else {
+    stMsgTo('lg-fw-msg', '', '');
+  }
 }
 
 // ── Mods: pick a job, then show only that ──
@@ -1689,13 +1713,15 @@ async function lgScanCard() {
   var box = document.getElementById('lg-card-box');
   var list = document.getElementById('lg-card-list');
   if (!box) return;
-  var cb = document.getElementById('lg-connect');
+  var cb = document.getElementById('lg-connect'), ch = document.getElementById('lg-connect-help');
   if (!RD || RD.demo || !RD.root) {
     box.hidden = true;
     if (cb) cb.hidden = false;
+    if (ch) ch.hidden = false;
     return;
   }
   if (cb) cb.hidden = true;
+  if (ch) ch.hidden = true;
   var names = (await fsList('FIRMWARE')).filter(function(n){ return /\.bin$/i.test(n); });
   if (!names.length) { box.hidden = true; return; }
   list.innerHTML = names.map(function(n){
