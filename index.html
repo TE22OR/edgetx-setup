@@ -1385,7 +1385,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <li>Press <b>power</b>. The bootloader screen appears instead of the normal start-up.</li>
         <li>Power off again. That is the screen you would flash or recover from.</li>
       </ol>
-      <div class="sub" style="margin-top:8px"><b>If you did not see the bootloader, stop here.</b> Do not flash anything until you can reach it. Only use a <code>.bin</code> for your radio and for the version you are already running &mdash; this app cannot check that for you.</div>
+      <div class="sub" style="margin-top:8px"><b>If you did not see the bootloader, stop here.</b> Do not flash anything until you can reach it. Only use a <code>.bin</code> built for the Pocket. The app reads the version out of the file and compares it with your radio, and will warn you before letting you save a mismatch.</div>
       <div class="st-actions" style="margin-top:10px">
         <button class="btn btn-primary" onclick="lgUnlock()">I reached the bootloader &mdash; continue</button>
       </div>
@@ -1445,6 +1445,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <button class="btn btn-primary" id="lg-tocard" onclick="lgSaveToCard()" hidden>Save to radio's card</button>
         <button class="btn btn-ghost" id="lg-save" onclick="lgSave()">Download a copy instead</button>
       </div>
+      <div class="st-msg warn" id="lg-nocard" hidden>No radio connected, so I cannot write to its card. <b>Connect it on the Start tab</b> and come back and the <i>Save to radio's card</i> button appears. Otherwise download the file and copy it into <code>FIRMWARE/</code> on the card yourself.</div>
       <div class="st-msg" id="lg-msg" hidden></div>
     </div>
 
@@ -1657,7 +1658,7 @@ function mdShow(view) {
     if (el) el.hidden = (v !== view);
   });
   if (view === 'audio') renderMods();
-  if (view === 'logo' && LG.unlocked) lgScanCard();
+  if (view === 'logo' && LG.unlocked) { lgScanCard(); lgSyncButtons(); }
 }
 // The startup image means re-flashing. Make them confirm they can reach the
 // bootloader before any of the tooling is reachable.
@@ -1666,6 +1667,7 @@ function lgUnlock() {
   document.getElementById('lg-gate').hidden = true;
   document.getElementById('lg-work').hidden = false;
   lgScanCard();
+  lgSyncButtons();
 }
 
 // ── Logo: firmware already on the radio's card ──
@@ -1695,6 +1697,8 @@ async function lgFromCard(name) {
   }
 }
 async function lgSaveToCard() {
+  if (LG.mismatch && !confirm('This firmware is version ' + LG.ver + ' but your radio runs ' + (RD && RD.semver) +
+      '.\n\nFlashing it changes your firmware version, not just the logo.\n\nContinue anyway?')) return;
   if (!LG.fw || !LG.img) { stMsgTo('lg-msg','Load a firmware file and an image first.','warn'); return; }
   if (!RD || RD.demo || !RD.root) { stMsgTo('lg-msg','Connect the radio on the Start tab first.','warn'); return; }
   var btn = document.getElementById('lg-tocard');
@@ -1728,6 +1732,7 @@ function lgAdjust() {
   document.getElementById('lg-ctl').hidden = false;
   document.getElementById('lg-save-row').hidden = false;
   document.getElementById('lg-new-cap').textContent = 'after flashing';
+  lgSyncButtons();
   lgAuto();
 }
 function lgReset() {
@@ -1864,6 +1869,34 @@ async function lgLoadFw(f) {
     stMsgTo('lg-fw-msg', 'Could not use that file: ' + (e.message || e) + '.', 'bad');
   }
 }
+// EdgeTX builds carry their version as a plain ASCII string. Pull the most
+// repeated x.y.z out of the binary so we can compare it with the radio's own
+// semver from radio.yml, and refuse to pretend a mismatch is fine.
+function lgVersion(buf) {
+  var counts = {}, cur = '', i, c;
+  for (i = 0; i < buf.length; i++) {
+    c = buf[i];
+    if ((c >= 48 && c <= 57) || c === 46) { cur += String.fromCharCode(c); if (cur.length > 24) cur = ''; }
+    else { if (cur) { var m = /^(\d{1,2}\.\d{1,2}\.\d{1,2})$/.exec(cur); if (m) counts[m[1]] = (counts[m[1]] || 0) + 1; } cur = ''; }
+  }
+  var best = null, n = 0;
+  for (var k in counts) if (counts[k] > n) { n = counts[k]; best = k; }
+  return best;
+}
+
+// Whether we can write to the card can change after the firmware was loaded
+// (connect on the Start tab, then come back), so re-check it on every entry
+// rather than only when the .bin is picked.
+function lgSyncButtons() {
+  var live = !!(RD && !RD.demo && RD.root);
+  var tc = document.getElementById('lg-tocard');
+  if (tc) tc.hidden = !(live && LG.fw);
+  var dl = document.getElementById('lg-save');
+  if (dl) dl.textContent = live ? 'Download a copy instead' : 'Download the patched firmware';
+  var hint = document.getElementById('lg-nocard');
+  if (hint) hint.hidden = !(LG.fw && !live);
+}
+
 function lgUseFw(buf, filename) {
   var off = lgFind(buf);
   if (off < 0) throw new Error('no 128x64 splash found in this file. Check it is a Pocket (b/w) build and not a colour-radio or bootloader file');
@@ -1871,11 +1904,29 @@ function lgUseFw(buf, filename) {
   lgDrawBits(document.getElementById('lg-cur'), buf.subarray(off, off + 1024));
   document.getElementById('lg-step2').hidden = false;
   document.getElementById('lg-step3').hidden = false;
-  var tc = document.getElementById('lg-tocard');
-  if (tc) tc.hidden = !(RD && !RD.demo && RD.root);
+  lgSyncButtons();
   if (!LG.adjusted) lgClear(document.getElementById('lg-new'));
-  stMsgTo('lg-fw-msg', '<b>Splash found</b> in <code>' + _esc(filename) + '</code> at byte ' + off +
-    ' of ' + buf.length + '. The logo currently inside it is shown below.', 'good');
+  var fwVer = lgVersion(buf), radioVer = (RD && RD.semver) ? RD.semver : null;
+  LG.ver = fwVer; LG.mismatch = !!(fwVer && radioVer && fwVer !== radioVer);
+  var line = '<b>Splash found</b> in <code>' + _esc(filename) + '</code>. ';
+  var cls = 'good';
+  if (fwVer && radioVer) {
+    if (LG.mismatch) {
+      line += '<br><b>Version mismatch.</b> This file is EdgeTX <b>' + _esc(fwVer) +
+              '</b> but your radio is running <b>' + _esc(radioVer) + '</b>. Flashing it would change your ' +
+              'firmware version, not just the logo. Use a ' + _esc(radioVer) + ' build unless you actually want to change version.';
+      cls = 'bad';
+    } else {
+      line += 'EdgeTX <b>' + _esc(fwVer) + '</b>, which matches your radio. Logo only.';
+    }
+  } else if (fwVer) {
+    line += 'EdgeTX <b>' + _esc(fwVer) + '</b>. Connect the radio on the Start tab and I can check it against yours.';
+    cls = 'warn';
+  } else {
+    line += 'No version string found in this file, so I cannot tell what it would flash. Treat it with suspicion.';
+    cls = 'warn';
+  }
+  stMsgTo('lg-fw-msg', line, cls);
   lgRender();
 }
 function stMsgTo(id, html, cls) {
@@ -1930,6 +1981,8 @@ function lgRender() {
   lgDrawBits(document.getElementById('lg-new'), lgBits());
 }
 function lgSave() {
+  if (LG.mismatch && !confirm('This firmware is version ' + LG.ver + ' but your radio runs ' + (RD && RD.semver) +
+      '.\n\nFlashing it changes your firmware version, not just the logo.\n\nContinue anyway?')) return;
   if (!LG.fw) { stMsgTo('lg-msg','Load a firmware file first.','warn'); return; }
   if (!LG.img) { stMsgTo('lg-msg','Choose an image first.','warn'); return; }
   var out = LG.fw.slice(), bits = lgBits();
