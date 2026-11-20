@@ -640,6 +640,61 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 
 .lg-choice{margin-top:10px;display:grid;gap:7px;font-size:12px;opacity:.82}
 .lg-choice div{padding-left:10px;border-left:2px solid rgba(255,255,255,.18)}
+
+/* ── HELP TAB ── */
+.help-container{max-width:720px;margin:0 auto;padding:24px 16px;display:flex;flex-direction:column;gap:24px}
+.help-section{display:flex;flex-direction:column;gap:12px}
+.help-section-title{font-family:var(--display);font-size:15px;font-weight:700;color:var(--text);letter-spacing:0.04em;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+.help-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r8);padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.help-card-title{font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px}
+.help-card-title .help-icon{font-size:16px;line-height:1}
+.help-card p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+.help-card p b{color:var(--text)}
+.help-card p code{font-family:var(--mono);font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--p2)}
+.help-card a{color:var(--p2);text-decoration:none}
+.help-card a:hover{text-decoration:underline}
+/* Flash troubleshooter steps */
+.flash-steps{display:flex;flex-direction:column;gap:8px;margin:4px 0}
+.flash-step{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--muted);line-height:1.5}
+.flash-step-num{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:var(--p1a);border:1px solid rgba(255,46,166,.3);color:var(--p1);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.flash-step b{color:var(--text)}
+.flash-step code{font-family:var(--mono);font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--p2)}
+/* ELRS LED table */
+.elrs-led-table{width:100%;border-collapse:collapse;font-size:12px}
+.elrs-led-table th{text-align:left;color:var(--muted);font-weight:500;padding:4px 8px;border-bottom:1px solid var(--border)}
+.elrs-led-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);vertical-align:middle}
+.elrs-led-table tr:last-child td{border-bottom:none}
+.elrs-led-dot{width:12px;height:12px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:6px}
+.elrs-led-anim-slow{animation:elrs-blink-slow 1.6s step-end infinite}
+.elrs-led-anim-two{animation:elrs-blink-two 1.1s step-end infinite}
+.elrs-led-anim-fast{animation:elrs-blink-fast 0.12s step-end infinite}
+@keyframes elrs-blink-slow{0%,49%{opacity:1}50%,100%{opacity:.1}}
+@keyframes elrs-blink-two{0%,8%{opacity:1}9%,24%{opacity:.1}25%,33%{opacity:1}34%,100%{opacity:.1}}
+@keyframes elrs-blink-fast{0%,49%{opacity:1}50%,100%{opacity:.15}}
+/* Disarm reason cards */
+.disarm-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.disarm-cards{grid-template-columns:1fr}}
+.disarm-card{background:var(--surface2);border-radius:var(--r4);padding:12px 14px;border:1px solid var(--border2)}
+.disarm-card-title{font-size:12px;font-weight:700;color:var(--warn);font-family:var(--mono);margin-bottom:6px}
+.disarm-card-title.danger{color:var(--danger)}
+.disarm-card p{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+.disarm-card p b{color:var(--text)}
+/* Manufacturer firmware warning */
+.mfr-warn-banner{background:rgba(255,214,10,.08);border:1px solid rgba(255,214,10,.3);border-radius:var(--r8);padding:14px 16px;font-size:12px;line-height:1.6;color:var(--text)}
+.mfr-warn-banner b{color:var(--warn)}
+.mfr-warn-banner code{font-family:var(--mono);font-size:11px;background:var(--surface);padding:1px 4px;border-radius:3px}
+/* Backup nag modal */
+.backup-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px}
+.backup-modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r12);padding:24px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px;box-shadow:0 0 60px rgba(0,0,0,.8)}
+.backup-modal-title{font-family:var(--display);font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px}
+.backup-modal-body{font-size:13px;color:var(--muted);line-height:1.6}
+.backup-modal-body b{color:var(--text)}
+.backup-modal-actions{display:flex;gap:8px;justify-content:flex-end}
+/* Water dunk */
+.water-steps{display:flex;flex-direction:column;gap:8px}
+.water-step{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--muted);line-height:1.5}
+.water-step-icon{flex-shrink:0;font-size:14px;margin-top:1px}
+.water-step b{color:var(--text)}
 </style>
 
 <!-- ── HEADER ── -->
@@ -693,6 +748,10 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
   <button class="tab-btn" data-tab="mods" onclick="switchTab('mods')">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M8 1.6l1.85 3.75 4.15.6-3 2.93.71 4.12L8 11.06l-3.71 1.94.71-4.12-3-2.93 4.15-.6z"/></svg>
     Mods
+  </button>
+  <button class="tab-btn" data-tab="help" onclick="switchTab('help')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M6 6.3c0-1.1.9-2 2-2s2 .9 2 2c0 1-.7 1.5-1.4 1.9C7.9 8.6 7.5 9 7.5 9.5"/><circle cx="8" cy="12" r=".8" fill="currentColor"/></svg>
+    Help
   </button>
 </nav>
 
@@ -4096,6 +4155,226 @@ var DEMO_SD = {
 
 renderLinks();
 renderSetup();
+
+// ── BACKUP NAG ──────────────────────────────────────────────
+let _backupNagSeen = false;   // reset each page load; persists for the session
+let _backupNagCb   = null;    // callback to call after confirm
+
+function requireBackupNag(callback) {
+  if (_backupNagSeen) { callback(); return; }
+  _backupNagCb = callback;
+  document.getElementById('backup-nag-overlay').hidden = false;
+  document.getElementById('backup-nag-confirm-btn').focus();
+}
+
+function backupNagConfirm() {
+  document.getElementById('backup-nag-overlay').hidden = true;
+  _backupNagSeen = true;
+  if (_backupNagCb) { const cb = _backupNagCb; _backupNagCb = null; cb(); }
+}
+
+function backupNagDismiss() {
+  document.getElementById('backup-nag-overlay').hidden = true;
+  _backupNagSeen = true;
+  _backupNagCb = null;
+}
+
+// Close on overlay click (not on card click)
+document.getElementById('backup-nag-overlay').addEventListener('click', function(e) {
+  if (e.target === this) backupNagDismiss();
+});
+
+// Patch applyPlan, applyTones, lgSaveToCard to go through the nag first
+(function() {
+  const origApply = window.applyPlan;
+  if (typeof origApply === 'function') {
+    window.applyPlan = function() {
+      const args = arguments;
+      requireBackupNag(function() { origApply.apply(window, args); });
+    };
+  }
+  const origTones = window.applyTones;
+  if (typeof origTones === 'function') {
+    window.applyTones = function() {
+      const args = arguments;
+      requireBackupNag(function() { origTones.apply(window, args); });
+    };
+  }
+  const origLg = window.lgSaveToCard;
+  if (typeof origLg === 'function') {
+    window.lgSaveToCard = function() {
+      const args = arguments;
+      requireBackupNag(function() { origLg.apply(window, args); });
+    };
+  }
+})();
 </script>
+
+<!-- ══════════════════════════════════════════
+     BACKUP NAG MODAL
+══════════════════════════════════════════ -->
+<div id="backup-nag-overlay" class="backup-modal-overlay" hidden>
+  <div class="backup-modal" role="dialog" aria-modal="true" aria-labelledby="backup-nag-title">
+    <div class="backup-modal-title">
+      <svg width="20" height="20" fill="none" stroke="var(--warn)" stroke-width="1.6" viewBox="0 0 20 20"><path d="M10 2.5l7.3 13H2.7L10 2.5z"/><path d="M10 8v4M10 14h.01"/></svg>
+      Back up first
+    </div>
+    <div class="backup-modal-body">
+      <b>Always run <code>diff all</code> and save a backup before <em>and</em> after every change.</b><br><br>
+      This app backs up automatically when you press <b>Apply</b>, but if you use Betaflight Configurator or the CLI directly, do it yourself first.<br><br>
+      In Betaflight CLI: <code>diff all</code> → copy the output → save as a text file.<br>
+      In EdgeTX: this tool saves to <code>BACKUP/</code> on every write.
+    </div>
+    <div class="backup-modal-actions">
+      <button class="btn btn-ghost" onclick="backupNagDismiss()">Got it, don't remind me</button>
+      <button class="btn btn-primary" onclick="backupNagConfirm()" id="backup-nag-confirm-btn">I've backed up — continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TAB: HELP
+══════════════════════════════════════════ -->
+<section class="tab-panel" id="tab-help">
+  <div class="help-container">
+
+    <!-- ── Flashing troubleshooter ── -->
+    <div class="help-section">
+      <div class="help-section-title">⚡ Betaflight flashing troubleshooter</div>
+
+      <div class="help-card">
+        <div class="help-card-title"><span class="help-icon">🔴</span> "No compatible devices found" in the Betaflight flasher</div>
+        <p>The FC is not in DFU mode, or Windows has the wrong driver. Work through these steps in order:</p>
+        <div class="flash-steps">
+          <div class="flash-step">
+            <div class="flash-step-num">1</div>
+            <div><b>Use the Setup tab → Activate Boot Loader button.</b> As of Betaflight 2026.6 the CLI <code>bl</code> command is removed. The only supported route is <b>Betaflight Configurator → Setup tab → Activate Boot Loader</b>. The FC will disconnect and re-appear as a DFU device.</div>
+          </div>
+          <div class="flash-step">
+            <div class="flash-step-num">2</div>
+            <div><b>Check Device Manager (Windows).</b> Look under "Universal Serial Bus devices" for <b>STM32 BOOTLOADER</b> or <b>DFU in FS Mode</b>. If it shows a yellow ⚠ it needs a driver.</div>
+          </div>
+          <div class="flash-step">
+            <div class="flash-step-num">3</div>
+            <div><b>Fix the driver with Zadig.</b> Download <a href="https://zadig.akeo.ie" target="_blank">zadig.akeo.ie</a>. Select the DFU device → choose <b>WinUSB</b> → click <b>Replace Driver</b>. <b>ImpulseRC Driver Fixer does not fix this</b> — use Zadig only.</div>
+          </div>
+          <div class="flash-step">
+            <div class="flash-step-num">4</div>
+            <div><b>Flash from app.betaflight.com in Chrome.</b> Open <a href="https://app.betaflight.com" target="_blank">app.betaflight.com</a> in Chrome (not Firefox, not Electron), connect to the DFU device, choose your firmware and flash.</div>
+          </div>
+          <div class="flash-step">
+            <div class="flash-step-num">5</div>
+            <div><b>Fallback: STM32CubeProgrammer.</b> If Chrome still won't see it, use <a href="https://www.st.com/en/development-tools/stm32cubeprog.html" target="_blank">STM32CubeProgrammer</a> → USB → Connect. This talks to DFU directly without needing a browser.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Manufacturer firmware warning ── -->
+    <div class="help-section">
+      <div class="help-section-title">⚠️ Manufacturer firmware warning</div>
+
+      <div class="mfr-warn-banner">
+        <b>BNF whoops may use gyros that stock Betaflight does not support.</b><br>
+        Examples: BetaFPV Air65 II and similar boards with the <b>Matrix 5IN1 II</b> use the <b>BMI270</b> gyro which needs a <b>−135° yaw offset</b>. Flashing stock Betaflight gives you a quad that flips on arming or hits <b>RUNAWAY</b> protection immediately — this is normal and expected, not a defective board.<br><br>
+        <b>Always identify your gyro chip first.</b> Check the board manufacturer's product page or the silkscreen. If your board has a <code>BMI270</code> (or any chip not listed in stock Betaflight's hardware table), use the <b>manufacturer's custom firmware build</b> which includes the correct alignment offsets and any chip-specific initialisation.<br><br>
+        Manufacturer firmware pages: <a href="https://betafpv.com/pages/firmware" target="_blank">BetaFPV firmware</a> · <a href="https://www.happymodel.cn/index.php/product-category/fc/" target="_blank">HappyModel</a> · <a href="https://github.com/betaflight/unified-targets" target="_blank">Betaflight unified targets (community)</a>
+      </div>
+    </div>
+
+    <!-- ── ELRS LED decoder ── -->
+    <div class="help-section">
+      <div class="help-section-title">📡 ELRS LED status decoder</div>
+
+      <div class="help-card">
+        <div class="help-card-title"><span class="help-icon">💡</span> What is the receiver LED telling you?</div>
+        <table class="elrs-led-table">
+          <thead>
+            <tr><th>LED pattern</th><th>Meaning</th><th>What to do</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="elrs-led-dot elrs-led-anim-slow" style="background:var(--success)"></span> Slow blink (~0.5 Hz)</td>
+              <td>Waiting for a transmitter signal</td>
+              <td>Turn on your radio and check the ELRS module is active</td>
+            </tr>
+            <tr>
+              <td><span class="elrs-led-dot elrs-led-anim-two" style="background:var(--success)"></span> Two quick + pause</td>
+              <td>Bind mode</td>
+              <td>Put TX into bind mode (Tools → ExpressLRS → Bind on the Pocket)</td>
+            </tr>
+            <tr>
+              <td><span class="elrs-led-dot elrs-led-anim-fast" style="background:var(--p2)"></span> Fast flicker (10 Hz)</td>
+              <td>WiFi mode active</td>
+              <td>Connect to the <code>ExpressLRS RX</code> WiFi network and flash via <code>10.0.0.1</code>, or reboot to cancel</td>
+            </tr>
+            <tr>
+              <td><span class="elrs-led-dot" style="background:var(--success)"></span> Solid on</td>
+              <td>Linked to transmitter</td>
+              <td>All good — ready to fly</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top:4px;font-size:11px;color:var(--dim)">LED colour varies by receiver hardware. The pattern is what matters, not the colour.</p>
+      </div>
+
+      <!-- ELRS flashing tips -->
+      <div class="help-card">
+        <div class="help-card-title"><span class="help-icon">🔧</span> Flashing ELRS receivers — AIO whoop boards</div>
+        <p><b>AIO whoop boards need USB and a battery connected simultaneously</b> for ELRS passthrough flashing. The USB port powers the FC; the battery powers the ELRS subsystem on its own rail. Without the battery the receiver won't respond.</p>
+        <p><b>To flash via passthrough using the Pocket:</b> go to <b>Tools → ExpressLRS</b> on the Pocket. This runs the built-in ELRS Lua script which handles binding and passthrough flashing directly from the radio without a PC.</p>
+        <p><b>To bind a new receiver to the Pocket:</b> <b>Tools → ExpressLRS → Bind</b>. The receiver must already be in bind mode (two quick blinks). If you're using a binding phrase instead, set it in the receiver firmware before flashing — no button bind needed.</p>
+      </div>
+    </div>
+
+    <!-- ── Disarm reason explainer ── -->
+    <div class="help-section">
+      <div class="help-section-title">🛑 Disarm reason explainer</div>
+
+      <div class="help-card">
+        <div class="help-card-title"><span class="help-icon">❓</span> Why did my quad disarm mid-flight?</div>
+        <p>Check the Betaflight OSD or the <b>Status</b> tab for the last disarm reason flag.</p>
+        <div class="disarm-cards" style="margin-top:8px">
+          <div class="disarm-card">
+            <div class="disarm-card-title danger">RUNAWAY_TAKEOFF</div>
+            <p><b>Setup mismatch.</b> The quad detected uncontrolled acceleration at takeoff. Common causes: wrong motor order, reversed motor direction, wrong props (pusher on puller), board alignment wrong in Betaflight, or flashing stock firmware on a board that needs <b>manufacturer firmware</b> (see above). Check all four before flying again.</p>
+          </div>
+          <div class="disarm-card">
+            <div class="disarm-card-title">BAD_RX_RECOVERY</div>
+            <p><b>Radio link dropped then recovered.</b> The FC saw failsafe then got valid signal back too quickly to trust it. Most common cause on 1S whoops: <b>battery at ~3.56 V</b> (flat 1S). The voltage dip kills the ELRS receiver for a moment. Land and recharge. Also check antenna position and USB/video interference.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Water dunk guide ── -->
+    <div class="help-section">
+      <div class="help-section-title">💧 Water dunk recovery guide</div>
+
+      <div class="help-card">
+        <div class="help-card-title"><span class="help-icon">🚿</span> Quad got wet — what to do</div>
+        <p>99% of water-damaged FPV gear can be saved if you act fast. <b>Do not power it on until it is dry.</b></p>
+        <div class="water-steps" style="margin-top:8px">
+          <div class="water-step"><span class="water-step-icon">1️⃣</span><div><b>Remove battery immediately.</b> The longer current flows through wet contacts, the worse the corrosion.</div></div>
+          <div class="water-step"><span class="water-step-icon">2️⃣</span><div><b>Scrub with 99% IPA</b> (isopropyl alcohol). Use a soft toothbrush. This displaces water and dissolves flux residue that causes corrosion. 99% only — lower percentages leave water behind.</div></div>
+          <div class="water-step"><span class="water-step-icon">3️⃣</span><div><b>Leave to dry for 24 hours minimum.</b> Warm, dry environment. A warm (not hot) spot near a router or on a shelf works well. Rice is a myth — use airflow.</div></div>
+          <div class="water-step"><span class="water-step-icon">4️⃣</span><div><b>Apply conformal coat</b> once dry and working, to protect against next time. MG Chemicals 422B or similar. Keep clear of connectors and buttons.</div></div>
+        </div>
+        <p style="margin-top:8px"><b>Symptoms that point to water damage after the fact:</b></p>
+        <p>Receiver solid on (linked) but no stick response → corrosion on signal pads. Bootloader shows but FC won't flash → corrosion on USB data lines. OSD on a black screen → FC alive but VTX/camera pads corroded. These usually respond well to another IPA scrub followed by re-soldering any suspect joints.</p>
+      </div>
+    </div>
+
+    <!-- ── CLI progress bar roadmap note ── -->
+    <div class="help-section">
+      <div class="help-section-title">🗺️ Roadmap</div>
+      <div class="help-card">
+        <div class="help-card-title"><span class="help-icon">🔜</span> Coming: CLI paste with progress</div>
+        <p>A paste-and-flash panel is planned: paste a <code>diff all</code> output or a rates snippet, and the app sends it line by line over Web Serial with a live ✓/✗ per command and reboot detection. Will also link with <code>bfcli.py</code> for scripted sessions. Not built yet — tracked here.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
 
 </body></html>
