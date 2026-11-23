@@ -1635,7 +1635,7 @@ const FN_OPTIONS = [
 function switchTab(id) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
-  if (id === 'script') updateScript();
+  if (id === 'script') { updateScript(); if (typeof scriptSyncButton === 'function') scriptSyncButton(); }
   if (id === 'setup' && typeof renderSetup === 'function') renderSetup();
   if (id === 'mods' && typeof mdShow === 'function') mdShow('home');
 }
