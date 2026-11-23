@@ -1198,7 +1198,8 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <div class="assign-panel-sub">MSP over ELRS — reads scroll wheel, blends rates live</div>
       </div>
       <div class="script-actions">
-        <button class="btn btn-primary btn-sm" onclick="copyScript()">Copy Script</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyScript()">Copy Script</button>
+        <button class="btn btn-primary btn-sm" id="script-tocard-btn" onclick="scriptSaveToCard()" hidden>Save to radio's card</button>
       </div>
     </div>
 
@@ -1738,6 +1739,7 @@ async function mdConnect() {
   if (typeof renderMods === 'function') renderMods();
   if (typeof lgScanCard === 'function') { await lgScanCard(); }
   if (typeof lgSyncButtons === 'function') lgSyncButtons();
+  if (typeof scriptSyncButton === 'function') scriptSyncButton();
   if (!live) {
     stMsgTo('lg-fw-msg', 'No drive was picked, so nothing is connected. The picker opens on your computer\'s folders and looks empty until you point it at the radio: switch the radio on, plug in a <b>data</b> USB cable, choose <b>USB Storage (SD)</b> on the radio, then press the button again and select the drive that appears.', 'warn');
   } else {
@@ -2491,12 +2493,38 @@ function copyScript() {
   });
 }
 
+function scriptSyncButton() {
+  var btn = document.getElementById('script-tocard-btn');
+  if (btn) btn.hidden = !(RD && !RD.demo && RD.root);
+}
+
+async function scriptSaveToCard() {
+  if (!RD || RD.demo || !RD.root) return;
+  var btn = document.getElementById('script-tocard-btn');
+  var text = document.getElementById('lua-output').textContent;
+  try {
+    btn.disabled = true; btn.textContent = 'Saving…';
+    var scriptsDir = await fsDir(RD.root, 'SCRIPTS', true);
+    var fnDir      = await fsDir(scriptsDir, 'FUNCTIONS', true);
+    await fsWrite(fnDir, 'rtblend.lua', text);
+    btn.textContent = 'Saved ✓';
+    btn.style.background = 'var(--success)';
+    setTimeout(() => { btn.textContent = 'Save to radio\'s card'; btn.style.background = ''; btn.disabled = false; }, 2000);
+  } catch(e) {
+    btn.textContent = 'Error — try again';
+    btn.style.background = 'var(--danger)';
+    setTimeout(() => { btn.textContent = 'Save to radio\'s card'; btn.style.background = ''; btn.disabled = false; }, 2500);
+    console.error('scriptSaveToCard:', e);
+  }
+}
+
 function updateScript() {
   if (document.getElementById('tab-script').classList.contains('active')) {
     // already active, update live
   }
   // always update so it's ready when tab opens
   _scheduleScriptUpdate();
+  scriptSyncButton();
 }
 let _scriptTimer;
 function _scheduleScriptUpdate() {
@@ -4005,6 +4033,8 @@ function releaseHandles() {
     RD.radioYml = null; RD.recOld = null; RD.models = []; RD.backups = [];
   }
   RD = null;
+  if (typeof scriptSyncButton === 'function') scriptSyncButton();
+  if (typeof lgSyncButtons === 'function') lgSyncButtons();
 }
 function showDisconnect(on) {
   var b = document.getElementById('st-disconnect-btn');
