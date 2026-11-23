@@ -508,6 +508,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 .logo-text { font-family:var(--display); font-weight:800; font-size:18px; letter-spacing:-0.02em; text-transform:uppercase }
 .logo-sub { font-size:10px; letter-spacing:0.16em; text-transform:uppercase; margin-top:3px }
 .header-right { display:flex; align-items:center; gap:14px }
+.app-version { font-family:var(--mono); font-size:10px; color:var(--border2); letter-spacing:0.06em; opacity:0.7; user-select:none; }
 .hud { display:flex; gap:14px; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted) }
 .hud-rec { color:var(--p1); display:flex; align-items:center; gap:6px }
 .hud-rec i { width:7px; height:7px; border-radius:50%; background:var(--p1); box-shadow:0 0 8px var(--p1); animation:hud-blink 1.4s steps(1) infinite }
@@ -708,6 +709,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
     </div>
   </div>
   <div class="header-right">
+    <span class="app-version" id="app-version-badge" title="App version">v1.2.0</span>
     <div class="hud" aria-hidden="true">
       <span class="hud-rec"><i></i>REC</span>
       <span class="hud-hide">CH5 <span class="hud-cy">ARMED</span></span>
@@ -3566,6 +3568,7 @@ function drawRecFrame(now) {
 //  START TAB — connect radio and one-click setup
 // ══════════════════════════════════════════
 var APP_ID = 'easysetup';
+var APP_VERSION = '1.2.0'; // Script tab save button + Help tab + backup nag
 var RD = null;   // connected radio state
 
 // Switch layouts we know. Value = number of positions.
