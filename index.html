@@ -709,7 +709,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
     </div>
   </div>
   <div class="header-right">
-    <span class="app-version" id="app-version-badge" title="App version">v1.2.2</span>
+    <span class="app-version" id="app-version-badge" title="App version">v1.2.4</span>
     <div class="hud" aria-hidden="true">
       <span class="hud-rec"><i></i>REC</span>
       <span class="hud-hide">CH5 <span class="hud-cy">ARMED</span></span>
@@ -1218,7 +1218,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
       <div class="info-body">
         <div class="info-title">Wheel source name</div>
         <div class="info-text">
-          In EdgeTX mixer: <strong>System → Inputs</strong>, check what your scroll wheel appears as. Common values: <code>ENC1</code>, <code>SC</code>, <code>6POS</code>. Update in the Radio tab → Scroll Wheel → Source. The script uses <code id="wheel-src-display">ENC1</code>.
+          <strong>The scroll wheel cannot be used.</strong> EdgeTX has no mixer source for a rotary encoder — the wheel is for menu navigation only, so a script asking for <code>ENC1</code> reads nothing and silently does nothing. Use a pot or a switch instead. On the Pocket there is one pot, normally <code>S1</code>; confirm the name under <strong>SYS → Hardware</strong> and type it below if yours differs. The script uses <code id="wheel-src-display">S1</code>.
         </div>
       </div>
     </div>
@@ -1411,7 +1411,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
         <div class="info-title">Lua widget for the Pocket screen</div>
         <div class="info-text">
           A <code>MODHEAD</code> Lua telemetry script will draw this on the Pocket's 128×64 mono screen (B&amp;W radios don't get widgets),
-          reading the same <code id="screen-src-label">ENC1</code> wheel source as the rate blend script.
+          reading the same <code id="screen-src-label">S1</code> wheel source as the rate blend script.
           Not built yet. It will save as <code>/SCRIPTS/TELEMETRY/mhead.lua</code> (EdgeTX allows 6-character script names).
         </div>
       </div>
@@ -1613,7 +1613,7 @@ const ASSIGNMENTS = {
   sd: { fn:'none',       label:'',             ch:8, pos:'down', color:'' },
   se: { fn:'turtle',     label:'Turtle',       ch:9, pos:'',     color:'#22dd88' },
   sh: { fn:'none',       label:'',             ch:10,pos:'',     color:'' },
-  wheel: { fn:'blend',   label:'Rate Blend',   ch:0, pos:'',     color:'#19e3ff', src:'ENC1' },
+  wheel: { fn:'blend',   label:'Rate Blend',   ch:0, pos:'',     color:'#19e3ff', src:'S1' },
 };
 
 const LINKED = { a: true, b: true };
@@ -2207,11 +2207,11 @@ function pickFn(fn) {
 function renderFnExtra() {
   const extra = document.getElementById('fn-extra');
   if (selectedComp === 'wheel' && pendingFn === 'blend') {
-    const src = ASSIGNMENTS.wheel.src || 'ENC1';
+    const src = ASSIGNMENTS.wheel.src || 'S1';
     extra.hidden = false;
     extra.innerHTML = `
       <div><label>Wheel source name in EdgeTX</label>
-        <input type="text" id="wheel-src-input" value="${src}" placeholder="ENC1" oninput="ASSIGNMENTS.wheel.src=this.value;document.getElementById('wheel-src-display').textContent=this.value||'ENC1'">
+        <input type="text" id="wheel-src-input" value="${src}" placeholder="S1" oninput="ASSIGNMENTS.wheel.src=this.value;document.getElementById('wheel-src-display').textContent=this.value||'S1'">
       </div>
       <div style="font-size:11px;color:var(--muted)">Check your EdgeTX Inputs screen to find the exact source name for the scroll wheel.</div>
     `;
@@ -2338,7 +2338,7 @@ function luaNum(n, w=3) { return String(n).padStart(w,' ') }
 function updateScript() {
   const a = getProfileValues('a');
   const b = getProfileValues('b');
-  const src = ASSIGNMENTS.wheel.src || 'ENC1';
+  const src = ASSIGNMENTS.wheel.src || 'S1';
 
   const script = [
 `-- ─────────────────────────────────────────────────────
@@ -2575,7 +2575,7 @@ function _scheduleScriptUpdate() {
         // pull fresh values and regenerate
         const a2 = getProfileValues('a');
         const b2 = getProfileValues('b');
-        const src = ASSIGNMENTS.wheel.src || 'ENC1';
+        const src = ASSIGNMENTS.wheel.src || 'S1';
         // just re-run the script generation inline
         genAndSetScript();
       }, 300);
@@ -2585,7 +2585,7 @@ function _scheduleScriptUpdate() {
   function genAndSetScript() {
     const a = getProfileValues('a');
     const b = getProfileValues('b');
-    const src = ASSIGNMENTS.wheel.src || 'ENC1';
+    const src = ASSIGNMENTS.wheel.src || 'S1';
     document.getElementById('wheel-src-display').textContent = src;
 
     // Build the script text (same as updateScript)
@@ -2755,7 +2755,7 @@ return { run = run }`;
 document.addEventListener('DOMContentLoaded', function() {
   const a = getProfileValues('a');
   const b = getProfileValues('b');
-  const src = ASSIGNMENTS.wheel.src || 'ENC1';
+  const src = ASSIGNMENTS.wheel.src || 'S1';
   const script = buildScript(a, b, src);
   const pre = document.getElementById('lua-output');
   if (pre) {
@@ -2809,7 +2809,7 @@ function renderBrainLabel() {
   var srcEl = document.getElementById('screen-src-label');
   if (el) { el.textContent = label; el.style.color = col; }
   if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.color = col; }
-  if (srcEl) { srcEl.textContent = ASSIGNMENTS.wheel.src || 'ENC1'; }
+  if (srcEl) { srcEl.textContent = ASSIGNMENTS.wheel.src || 'S1'; }
   var sldr = document.getElementById('screen-blend');
   if (sldr) sldr.value = pct;
 }
@@ -3649,7 +3649,7 @@ function drawRecFrame(now) {
 //  START TAB — connect radio and one-click setup
 // ══════════════════════════════════════════
 var APP_ID = 'easysetup';
-var APP_VERSION = '1.2.2';
+var APP_VERSION = '1.2.4';
 var RD = null;   // connected radio state
 
 // Switch layouts we know. Value = number of positions.
