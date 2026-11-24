@@ -508,7 +508,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
 .logo-text { font-family:var(--display); font-weight:800; font-size:18px; letter-spacing:-0.02em; text-transform:uppercase }
 .logo-sub { font-size:10px; letter-spacing:0.16em; text-transform:uppercase; margin-top:3px }
 .header-right { display:flex; align-items:center; gap:14px }
-.app-version { font-family:var(--mono); font-size:10px; color:var(--p1); letter-spacing:0.06em; opacity:1; user-select:none; display:inline; white-space:nowrap; }
+.app-version { font-family:var(--mono); font-size:10px; color:#ff2ea6; letter-spacing:0.06em; opacity:1; user-select:none; display:inline !important; white-space:nowrap; }
 .hud { display:flex; gap:14px; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted) }
 .hud-rec { color:var(--p1); display:flex; align-items:center; gap:6px }
 .hud-rec i { width:7px; height:7px; border-radius:50%; background:var(--p1); box-shadow:0 0 8px var(--p1); animation:hud-blink 1.4s steps(1) infinite }
@@ -709,7 +709,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
     </div>
   </div>
   <div class="header-right">
-    <span class="app-version" id="app-version-badge" title="App version">v1.2.0</span>
+    <span class="app-version" id="app-version-badge" title="App version">v1.2.1</span>
     <div class="hud" aria-hidden="true">
       <span class="hud-rec"><i></i>REC</span>
       <span class="hud-hide">CH5 <span class="hud-cy">ARMED</span></span>
@@ -1635,7 +1635,7 @@ const FN_OPTIONS = [
 function switchTab(id) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
-  if (id === 'script') updateScript();
+  if (id === 'script') { updateScript(); if (typeof scriptSyncButton === 'function') scriptSyncButton(); }
   if (id === 'setup' && typeof renderSetup === 'function') renderSetup();
   if (id === 'mods' && typeof mdShow === 'function') mdShow('home');
 }
@@ -2506,9 +2506,7 @@ async function scriptSaveToCard() {
   var text = document.getElementById('lua-output').textContent;
   try {
     btn.disabled = true; btn.textContent = 'Saving…';
-    var scriptsDir = await fsDir(RD.root, 'SCRIPTS', true);
-    var fnDir      = await fsDir(scriptsDir, 'FUNCTIONS', true);
-    await fsWrite(fnDir, 'rtblend.lua', text);
+    await fsWrite('SCRIPTS/FUNCTIONS/rtblend.lua', text);
     btn.textContent = 'Saved ✓';
     btn.style.background = 'var(--success)';
     setTimeout(() => { btn.textContent = 'Save to radio\'s card'; btn.style.background = ''; btn.disabled = false; }, 2000);
@@ -3568,7 +3566,7 @@ function drawRecFrame(now) {
 //  START TAB — connect radio and one-click setup
 // ══════════════════════════════════════════
 var APP_ID = 'easysetup';
-var APP_VERSION = '1.2.0';
+var APP_VERSION = '1.2.1';
 var RD = null;   // connected radio state
 
 // Switch layouts we know. Value = number of positions.
