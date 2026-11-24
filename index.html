@@ -709,7 +709,7 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
     </div>
   </div>
   <div class="header-right">
-    <span class="app-version" id="app-version-badge" title="App version">v1.2.1</span>
+    <span class="app-version" id="app-version-badge" title="App version">v1.2.2</span>
     <div class="hud" aria-hidden="true">
       <span class="hud-rec"><i></i>REC</span>
       <span class="hud-hide">CH5 <span class="hud-cy">ARMED</span></span>
@@ -1226,9 +1226,9 @@ header { background:rgba(10,10,10,0.82); backdrop-filter:blur(10px); -webkit-bac
     <div class="info-card">
       <div class="info-icon">⚠️</div>
       <div class="info-body">
-        <div class="info-title">MSP payload verification needed</div>
+        <div class="info-title">Set your profiles to match your rates type</div>
         <div class="info-text">
-          <code>MSP_SET_RC_TUNING</code> (cmd 204) byte order for <strong>ACTUAL rates type</strong> should be verified on your BETAFPVG473_V2 / BF 2026.6.0-alpha. The structure used here follows standard BF MSP docs: rcRate, expo, superRate (roll/pitch), superRate (yaw), … yawExpo, rollExpo, pitchRcRate, pitchExpo. Enable Betaflight MSP logging or test with small values first.
+          The <code>MSP_SET_RC_TUNING</code> byte order is verified against Betaflight <strong>2026.6.2</strong> source (<code>msp/msp.c</code>) and EdgeTX <strong>2.12</strong>. The script reads your quad's current rate profile first and writes nothing until it answers, so your throttle curve is never guessed at. <strong>But it does not change your rates type.</strong> Profile A and B values are raw MSP bytes (RC Rate 1.00 = 100, Rate 0.65 = 65, Expo 0.20 = 20) and are interpreted using whatever rates type the quad is already on — check Betaflight Configurator → Rates and set your profiles in those units. Always bench-test with props off first.
         </div>
       </div>
     </div>
@@ -2367,20 +2367,32 @@ local PROFILE_B = {
 -- Scroll wheel source name — verify in EdgeTX Inputs screen
 local WHEEL = "${src}"
 
--- MSP command for rate tuning
+-- ── MSP over CRSF ────────────────────────────────────
+-- Verified against Betaflight 2026.6.2 and EdgeTX 2.12.
+--   rx/crsf_protocol.h   0x7A MSP_REQ, 0x7B MSP_RESP, 0x7C MSP_WRITE
+--   msp/msp.c:3021       MSP_SET_RC_TUNING field order
+--   telemetry/msp_shared.c  <status><size><cmd><body>
+-- EdgeTX crossfireTelemetryPush(type, data) writes its data
+-- straight in as the frame payload, so the dest/origin and
+-- MSP header bytes have to be built here.
+local MSP_RC_TUNING     = 111
 local MSP_SET_RC_TUNING = 204
+local CRSF_MSP_REQ      = 0x7A
+local CRSF_MSP_RESP     = 0x7B
+local CRSF_MSP_WRITE    = 0x7C
+local ADDR_FC           = 0xC8
+local ADDR_RADIO        = 0xEA
+local MSPV1_START       = 0x30   -- start bit 0x10 + MSPv1 (1 << 5)
 
--- How often to send (ticks). ~10ms per tick in a function script.
--- 15 = ~150ms. Increase if link is noisy; decrease for snappier feel.
 local SEND_INTERVAL = 15
-
+local RETRY_TICKS   = 150
 local lastBlend = -99
-local tick = 0
-
--- ── Helpers ──────────────────────────────────────────
+local tick      = 0
+local seq       = 0
+local base      = nil            -- the quad's own rate profile
+local reqTick   = -1000
 
 local function lerp(a, b, t)
-  -- Integer lerp with rounding
   return math.floor(a + (b - a) * t + 0.5)
 end
 
@@ -2388,76 +2400,78 @@ local function clamp(v, lo, hi)
   return math.max(lo, math.min(hi, v))
 end
 
--- ── MSP send ─────────────────────────────────────────
--- crossfireTelemetryPush(0x7B, payload)
---   0x7B = CRSF_FRAMETYPE_MSP_WRITE
---   payload[1] = MSP command number, rest = MSP data bytes
---
--- MSP_SET_RC_TUNING byte order (ACTUAL rates type):
---   [1] cmd = 204
---   [2] rcRate_roll    (0–255)
---   [3] rcExpo_roll    (0–100)
---   [4] sRate_roll     (0–100)  — also applies to pitch
---   [5] sRate_yaw      (0–100)
---   [6] dynamicThrPID  (unused, send 0)
---   [7] thrMid         (send 50)
---   [8] thrExpo        (unused, send 0)
---   [9] tpaBreak LSB   (0xD0 → breakpoint 2000)
---  [10] tpaBreak MSB   (0x07)
---  [11] rcExpo_yaw     (0–100)
---  [12] rcExpo_roll    (repeat)
---  [13] rcRate_pitch   (0–255)
---  [14] rcExpo_pitch   (0–100)
---
--- ⚠ Verify byte order on BETAFPVG473_V2 / BF 2026.6.0-alpha.
---   Test with small blend values and check BF OSD rate display.
+local function status()
+  seq = (seq + 1) % 16
+  return MSPV1_START + seq
+end
 
+-- Ask the quad what its rates are now.
+local function requestBase()
+  crossfireTelemetryPush(CRSF_MSP_REQ,
+    { ADDR_FC, ADDR_RADIO, status(), 0, MSP_RC_TUNING })
+end
+
+-- Reply arrives as <dest><origin><status><size><cmd><body>.
+local function pollBase()
+  local cmd, data = crossfireTelemetryPop()
+  if cmd ~= CRSF_MSP_RESP or data == nil then return end
+  if data[5] ~= MSP_RC_TUNING then return end
+  local n = data[4]
+  if n == nil or n < 14 then return end
+  local b = {}
+  for i = 1, 14 do
+    b[i] = data[5 + i]
+    if b[i] == nil then return end
+  end
+  base = b
+end
+
+-- Sends 14 bytes. Throttle limit, rate limit, rates type and
+-- hover point sit past byte 14, so stopping here leaves them
+-- untouched. Bytes 6 to 10 are the quad's own throttle curve
+-- and the discarded TPA fields, echoed back unchanged.
 local function sendRates(blend)
-  local rr = lerp(PROFILE_A.roll.rc,  PROFILE_B.roll.rc,  blend)
-  local re = lerp(PROFILE_A.roll.ex,  PROFILE_B.roll.ex,  blend)
-  local rs = lerp(PROFILE_A.roll.sr,  PROFILE_B.roll.sr,  blend)
-  local pr = lerp(PROFILE_A.pitch.rc, PROFILE_B.pitch.rc, blend)
-  local pe = lerp(PROFILE_A.pitch.ex, PROFILE_B.pitch.ex, blend)
-  -- ps = lerp(PROFILE_A.pitch.sr, PROFILE_B.pitch.sr, blend)  (sent via rs)
-  local yr = lerp(PROFILE_A.yaw.rc,   PROFILE_B.yaw.rc,   blend)
-  local ye = lerp(PROFILE_A.yaw.ex,   PROFILE_B.yaw.ex,   blend)
-  local ys = lerp(PROFILE_A.yaw.sr,   PROFILE_B.yaw.sr,   blend)
-
-  crossfireTelemetryPush(0x7B, {
-    MSP_SET_RC_TUNING,  -- [1] command
-    rr,  -- [2]  rcRate roll
-    re,  -- [3]  rcExpo roll
-    rs,  -- [4]  sRate  roll/pitch
-    ys,  -- [5]  sRate  yaw
-    0,   -- [6]  dynamicThrPID
-    50,  -- [7]  thrMid
-    0,   -- [8]  thrExpo
-    0xD0,-- [9]  tpaBreak LSB (2000)
-    0x07,-- [10] tpaBreak MSB
-    ye,  -- [11] rcExpo yaw
-    re,  -- [12] rcExpo roll (repeat)
-    pr,  -- [13] rcRate pitch
-    pe   -- [14] rcExpo pitch
+  if base == nil then return end
+  crossfireTelemetryPush(CRSF_MSP_WRITE, {
+    ADDR_FC, ADDR_RADIO, status(), 14, MSP_SET_RC_TUNING,
+    lerp(PROFILE_A.roll.rc,  PROFILE_B.roll.rc,  blend), -- 0  rcRate roll
+    lerp(PROFILE_A.roll.ex,  PROFILE_B.roll.ex,  blend), -- 1  rcExpo roll
+    lerp(PROFILE_A.roll.sr,  PROFILE_B.roll.sr,  blend), -- 2  srate  roll
+    lerp(PROFILE_A.pitch.sr, PROFILE_B.pitch.sr, blend), -- 3  srate  pitch
+    lerp(PROFILE_A.yaw.sr,   PROFILE_B.yaw.sr,   blend), -- 4  srate  yaw
+    base[6],                                             -- 5  tpa_rate (ignored)
+    base[7],                                             -- 6  thrMid
+    base[8],                                             -- 7  thrExpo
+    base[9],                                             -- 8  tpa_break lo (ignored)
+    base[10],                                            -- 9  tpa_break hi (ignored)
+    lerp(PROFILE_A.yaw.ex,   PROFILE_B.yaw.ex,   blend), -- 10 rcExpo yaw
+    lerp(PROFILE_A.yaw.rc,   PROFILE_B.yaw.rc,   blend), -- 11 rcRate yaw
+    lerp(PROFILE_A.pitch.rc, PROFILE_B.pitch.rc, blend), -- 12 rcRate pitch
+    lerp(PROFILE_A.pitch.ex, PROFILE_B.pitch.ex, blend)  -- 13 rcExpo pitch
   })
 end
 
--- ── Main loop ─────────────────────────────────────────
-
 local function run(event)
   tick = tick + 1
+  pollBase()
+
+  -- Nothing is written until the quad has answered. If the link
+  -- is down or MSP is off in ELRS, this script stays silent
+  -- rather than guessing at the throttle curve.
+  if base == nil then
+    if tick - reqTick >= RETRY_TICKS then
+      reqTick = tick
+      requestBase()
+    end
+    return
+  end
+
   if tick % SEND_INTERVAL ~= 0 then return end
-
-  -- Read wheel: EdgeTX getValue returns -1024..+1024
   local raw = getValue(WHEEL)
-  if type(raw) ~= "number" then return end  -- source not found
-
-  -- Map to 0.0 (wheel down / Profile A) → 1.0 (wheel up / Profile B)
+  if type(raw) ~= "number" then return end
   local blend = clamp((raw + 1024) / 2048, 0, 1)
-
-  -- Skip if wheel hasn't moved enough
   if math.abs(blend - lastBlend) < 0.01 then return end
   lastBlend = blend
-
   sendRates(blend)
 end
 
@@ -2625,10 +2639,31 @@ local PROFILE_B = {
 }
 
 local WHEEL = "${src}"
+
+-- ── MSP over CRSF ────────────────────────────────────
+-- Verified against Betaflight 2026.6.2 and EdgeTX 2.12.
+--   rx/crsf_protocol.h   0x7A MSP_REQ, 0x7B MSP_RESP, 0x7C MSP_WRITE
+--   msp/msp.c:3021       MSP_SET_RC_TUNING field order
+--   telemetry/msp_shared.c  <status><size><cmd><body>
+-- EdgeTX crossfireTelemetryPush(type, data) writes its data
+-- straight in as the frame payload, so the dest/origin and
+-- MSP header bytes have to be built here.
+local MSP_RC_TUNING     = 111
 local MSP_SET_RC_TUNING = 204
+local CRSF_MSP_REQ      = 0x7A
+local CRSF_MSP_RESP     = 0x7B
+local CRSF_MSP_WRITE    = 0x7C
+local ADDR_FC           = 0xC8
+local ADDR_RADIO        = 0xEA
+local MSPV1_START       = 0x30   -- start bit 0x10 + MSPv1 (1 << 5)
+
 local SEND_INTERVAL = 15
+local RETRY_TICKS   = 150
 local lastBlend = -99
-local tick = 0
+local tick      = 0
+local seq       = 0
+local base      = nil            -- the quad's own rate profile
+local reqTick   = -1000
 
 local function lerp(a, b, t)
   return math.floor(a + (b - a) * t + 0.5)
@@ -2638,24 +2673,72 @@ local function clamp(v, lo, hi)
   return math.max(lo, math.min(hi, v))
 end
 
--- ⚠ Verify byte order on BETAFPVG473_V2 / BF 2026.6.0-alpha
-local function sendRates(blend)
-  local rr = lerp(PROFILE_A.roll.rc,  PROFILE_B.roll.rc,  blend)
-  local re = lerp(PROFILE_A.roll.ex,  PROFILE_B.roll.ex,  blend)
-  local rs = lerp(PROFILE_A.roll.sr,  PROFILE_B.roll.sr,  blend)
-  local pr = lerp(PROFILE_A.pitch.rc, PROFILE_B.pitch.rc, blend)
-  local pe = lerp(PROFILE_A.pitch.ex, PROFILE_B.pitch.ex, blend)
-  local ye = lerp(PROFILE_A.yaw.ex,   PROFILE_B.yaw.ex,   blend)
-  local ys = lerp(PROFILE_A.yaw.sr,   PROFILE_B.yaw.sr,   blend)
+local function status()
+  seq = (seq + 1) % 16
+  return MSPV1_START + seq
+end
 
-  crossfireTelemetryPush(0x7B, {
-    MSP_SET_RC_TUNING,
-    rr, re, rs, ys, 0, 50, 0, 0xD0, 0x07, ye, re, pr, pe
+-- Ask the quad what its rates are now.
+local function requestBase()
+  crossfireTelemetryPush(CRSF_MSP_REQ,
+    { ADDR_FC, ADDR_RADIO, status(), 0, MSP_RC_TUNING })
+end
+
+-- Reply arrives as <dest><origin><status><size><cmd><body>.
+local function pollBase()
+  local cmd, data = crossfireTelemetryPop()
+  if cmd ~= CRSF_MSP_RESP or data == nil then return end
+  if data[5] ~= MSP_RC_TUNING then return end
+  local n = data[4]
+  if n == nil or n < 14 then return end
+  local b = {}
+  for i = 1, 14 do
+    b[i] = data[5 + i]
+    if b[i] == nil then return end
+  end
+  base = b
+end
+
+-- Sends 14 bytes. Throttle limit, rate limit, rates type and
+-- hover point sit past byte 14, so stopping here leaves them
+-- untouched. Bytes 6 to 10 are the quad's own throttle curve
+-- and the discarded TPA fields, echoed back unchanged.
+local function sendRates(blend)
+  if base == nil then return end
+  crossfireTelemetryPush(CRSF_MSP_WRITE, {
+    ADDR_FC, ADDR_RADIO, status(), 14, MSP_SET_RC_TUNING,
+    lerp(PROFILE_A.roll.rc,  PROFILE_B.roll.rc,  blend), -- 0  rcRate roll
+    lerp(PROFILE_A.roll.ex,  PROFILE_B.roll.ex,  blend), -- 1  rcExpo roll
+    lerp(PROFILE_A.roll.sr,  PROFILE_B.roll.sr,  blend), -- 2  srate  roll
+    lerp(PROFILE_A.pitch.sr, PROFILE_B.pitch.sr, blend), -- 3  srate  pitch
+    lerp(PROFILE_A.yaw.sr,   PROFILE_B.yaw.sr,   blend), -- 4  srate  yaw
+    base[6],                                             -- 5  tpa_rate (ignored)
+    base[7],                                             -- 6  thrMid
+    base[8],                                             -- 7  thrExpo
+    base[9],                                             -- 8  tpa_break lo (ignored)
+    base[10],                                            -- 9  tpa_break hi (ignored)
+    lerp(PROFILE_A.yaw.ex,   PROFILE_B.yaw.ex,   blend), -- 10 rcExpo yaw
+    lerp(PROFILE_A.yaw.rc,   PROFILE_B.yaw.rc,   blend), -- 11 rcRate yaw
+    lerp(PROFILE_A.pitch.rc, PROFILE_B.pitch.rc, blend), -- 12 rcRate pitch
+    lerp(PROFILE_A.pitch.ex, PROFILE_B.pitch.ex, blend)  -- 13 rcExpo pitch
   })
 end
 
 local function run(event)
   tick = tick + 1
+  pollBase()
+
+  -- Nothing is written until the quad has answered. If the link
+  -- is down or MSP is off in ELRS, this script stays silent
+  -- rather than guessing at the throttle curve.
+  if base == nil then
+    if tick - reqTick >= RETRY_TICKS then
+      reqTick = tick
+      requestBase()
+    end
+    return
+  end
+
   if tick % SEND_INTERVAL ~= 0 then return end
   local raw = getValue(WHEEL)
   if type(raw) ~= "number" then return end
@@ -3566,7 +3649,7 @@ function drawRecFrame(now) {
 //  START TAB — connect radio and one-click setup
 // ══════════════════════════════════════════
 var APP_ID = 'easysetup';
-var APP_VERSION = '1.2.1';
+var APP_VERSION = '1.2.2';
 var RD = null;   // connected radio state
 
 // Switch layouts we know. Value = number of positions.
